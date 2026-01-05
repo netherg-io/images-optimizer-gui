@@ -17,98 +17,46 @@ $thickness: (
 $typography: (
   h1: (
     font-family: $font-family-default,
-    font-size: 40,
-    line-height: 46,
+    font-size: 24,
+    line-height: 36,
   ),
   h2: (
     font-family: $font-family-default,
-    font-size: 32,
-    line-height: 36,
-  ),
-  h3: (
-    font-family: $font-family-default,
-    font-size: 20,
-    line-height: 25,
-  ),
-  h4: (
-    font-family: $font-family-default,
-    font-size: 16,
-    line-height: 20,
+    font-size: 18,
+    line-height: 27,
   ),
   s1: (
     font-family: $font-family-default,
     font-size: 16,
-    line-height: 22,
+    line-height: 24,
   ),
   s2: (
     font-family: $font-family-default,
-    font-size: 16,
-    line-height: 24,
-  ),
-  s3: (
-    font-family: $font-family-default,
-    font-size: 12,
-    line-height: 16,
-  ),
-  i1: (
-    font-family: $font-family-default,
-    font-size: 16,
-    line-height: 24,
-    letter-spacing: 0.033,
-  ),
-  i2: (
-    font-family: $font-family-default,
     font-size: 14,
-    line-height: 21,
-    letter-spacing: 0.033,
+    line-height: 20,
   ),
 );
 
 $typography-mobile: (
   h1: (
     font-family: $font-family-default,
-    font-size: 30,
-    line-height: 32,
+    font-size: 1,
+    line-height: 1,
   ),
   h2: (
     font-family: $font-family-default,
-    font-size: 24,
-    line-height: 28,
-  ),
-  h3: (
-    font-family: $font-family-default,
-    font-size: 20,
-    line-height: 25,
-  ),
-  h4: (
-    font-family: $font-family-default,
-    font-size: 14,
-    line-height: 16,
+    font-size: 1,
+    line-height: 1,
   ),
   s1: (
     font-family: $font-family-default,
-    font-size: 16,
-    line-height: 24,
+    font-size: 1,
+    line-height: 1,
   ),
   s2: (
     font-family: $font-family-default,
-    font-size: 16,
-    line-height: 24,
-  ),
-  s3: (
-    font-family: $font-family-default,
-    font-size: 12,
-    line-height: 15,
-  ),
-  i1: (
-    font-family: $font-family-default,
-    font-size: 16,
-    line-height: 24,
-  ),
-  i2: (
-    font-family: $font-family-default,
-    font-size: 14,
-    line-height: 24,
+    font-size: 1,
+    line-height: 1,
   ),
 );
 
@@ -151,71 +99,31 @@ $typography-mobile: (
 @mixin h1($weight: 'r') {
   @include typography('h1', $weight);
 
-  @include media-breakpoint-down(sm) {
-    @include typography-mobile('h1', $weight);
-  }
+  // @include media-breakpoint-down(sm) {
+  //   @include typography-mobile('h1', $weight);
+  // }
 }
 
 @mixin h2($weight: 'r') {
   @include typography('h2', $weight);
 
-  @include media-breakpoint-down(sm) {
-    @include typography-mobile('h2', $weight);
-  }
-}
-
-@mixin h3($weight: 'r') {
-  @include typography('h3', $weight);
-
-  @include media-breakpoint-down(sm) {
-    @include typography-mobile('h3', $weight);
-  }
-}
-
-@mixin h4($weight: 'r') {
-  @include typography('h4', $weight);
-
-  @include media-breakpoint-down(sm) {
-    @include typography-mobile('h4', $weight);
-  }
+  // @include media-breakpoint-down(sm) {
+  //   @include typography-mobile('h2', $weight);
+  // }
 }
 
 @mixin s1($weight: 'r') {
   @include typography('s1', $weight);
 
-  @include media-breakpoint-down(sm) {
-    @include typography-mobile('s1', $weight);
-  }
+  // @include media-breakpoint-down(sm) {
+  //   @include typography-mobile('s1', $weight);
+  // }
 }
 
 @mixin s2($weight: 'r') {
   @include typography('s2', $weight);
 
-  @include media-breakpoint-down(sm) {
-    @include typography-mobile('s2', $weight);
-  }
-}
-
-@mixin s3($weight: 'r') {
-  @include typography('s3', $weight);
-
-  @include media-breakpoint-down(sm) {
-    @include typography-mobile('s3', $weight);
-  }
-}
-
-@mixin i1($weight: 'r') {
-  @include typography('i1', $weight);
-
-  @include media-breakpoint-down(sm) {
-    @include typography-mobile('i1', $weight);
-  }
-}
-
-@mixin i2($weight: 'r') {
-  @include typography('i2', $weight);
-
-  @include media-breakpoint-down(sm) {
-    @include typography-mobile('i2', $weight);
-  }
+  // @include media-breakpoint-down(sm) {
+  //   @include typography-mobile('s2', $weight);
+  // }
 }

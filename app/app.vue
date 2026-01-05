@@ -8,7 +8,17 @@
   </CResize>
 </template>
 
-<script setup></script>
+<script setup>
+import { getCurrentWindow } from '@tauri-apps/api/window';
+
+useTheme();
+
+onMounted(async () => {
+  await getCurrentWindow().show();
+
+  await getCurrentWindow().setFocus();
+});
+</script>
 
 <style scoped lang="scss">
 .app {
@@ -24,10 +34,6 @@
   &:deep(#{$parent}__page) {
     flex-grow: 1;
     width: 100%;
-  }
-
-  @include rtl {
-    direction: rtl;
   }
 }
 </style>

@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "images-optimizer",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "com.nether.image.optimizer",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:3000",
@@ -19,7 +19,8 @@
         "minHeight": 560,
         "resizable": true,
         "fullscreen": false,
-        "maximized": false
+        "maximized": false,
+        "visible": false
       }
     ],
     "security": {

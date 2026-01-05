@@ -1,13 +1,13 @@
 @use '../utils/utils.scss' as *;
 
-.hidden-desktop {
-  @include media-breakpoint-desktop {
-    display: none !important;
-  }
-}
+// .hidden-desktop {
+//   @include media-breakpoint-desktop {
+//     display: none !important;
+//   }
+// }
 
-.hidden-mobile {
-  @include media-breakpoint-mobile {
-    display: none !important;
-  }
-}
+// .hidden-mobile {
+//   @include media-breakpoint-mobile {
+//     display: none !important;
+//   }
+// }

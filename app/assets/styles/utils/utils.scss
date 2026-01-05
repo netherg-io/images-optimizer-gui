@@ -82,23 +82,17 @@
 }
 
 // Breakpoints
-@mixin media-breakpoint-desktop {
-  @include media-breakpoint-up(sm) {
-    @content;
-  }
-}
+// @mixin media-breakpoint-desktop {
+//   @include media-breakpoint-up(sm) {
+//     @content;
+//   }
+// }
 
-@mixin media-breakpoint-mobile {
-  @include media-breakpoint-down(sm) {
-    @content;
-  }
-}
-
-@mixin rtl {
-  [lang='ar'] & {
-    @content;
-  }
-}
+// @mixin media-breakpoint-mobile {
+//   @include media-breakpoint-down(sm) {
+//     @content;
+//   }
+// }
 
 @mixin animate-height {
   transition: height 1s ease;

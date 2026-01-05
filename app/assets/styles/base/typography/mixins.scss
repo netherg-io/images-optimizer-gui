@@ -13,9 +13,9 @@
     .#{$label + $suffixString} {
       @include typography($label, $suffix);
 
-      @include media-breakpoint-down(sm) {
-        @include typography-mobile($label, $suffix);
-      }
+      // @include media-breakpoint-down(sm) {
+      //   @include typography-mobile($label, $suffix);
+      // }
     }
   }
 }

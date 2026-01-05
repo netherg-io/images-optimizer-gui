@@ -1,15 +1,20 @@
 @use '../utils/variables.scss' as *;
 @use '../utils/utils.scss' as *;
 
-:root {
-  color-scheme: light dark;
-}
-
 html {
   text-size-adjust: 100%;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
   height: stretch;
+  color-scheme: light dark;
+
+  &.dark {
+    color-scheme: dark;
+  }
+
+  &.light {
+    color-scheme: light;
+  }
 }
 
 @property --gradient1 {
@@ -37,10 +42,9 @@ body {
   font-size: em($font-size-default);
   font-weight: 400;
   line-height: 1;
-  color: $text-color-primary;
   background: linear-gradient(135deg, var(--gradient1) 0%, var(--gradient2) 100%), light-dark(#FFFFFF, #0A0A0A);
   transition: $time-normal $ease;
-  transition-property: color, background-color, --gradient1, --gradient2;
+  transition-property: background-color, --gradient1, --gradient2;
 }
 
 * {
@@ -61,4 +65,6 @@ body {
 
 #app {
   flex-grow: 1;
+  color: $text-color-primary;
+  transition: color $time-normal $ease;
 }

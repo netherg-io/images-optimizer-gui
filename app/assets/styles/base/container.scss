@@ -3,14 +3,7 @@
 
 .container {
   width: 100%;
-  max-width: em(1152);
+  max-width: em(1216);
+  padding: 0 em(32);
   margin: 0 auto;
-
-  @include media-breakpoint-down(md) {
-    padding: 0 em(32);
-  }
-
-  @include media-breakpoint-down(sm) {
-    padding: 0 em(20);
-  }
 }
