@@ -10,7 +10,18 @@
     "core:window:allow-show",
     "core:window:allow-set-focus",
     "fs:default",
-    "fs:allow-home-read-recursive",
-    "dialog:default"
+    "dialog:default",
+    {
+      "identifier": "fs:allow-stat",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "**" }]
+    }
   ]
 }

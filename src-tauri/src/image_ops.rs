@@ -1,10 +1,15 @@
 use crate::tools::{get_tool_ref, ToolPath};
-use image::{DynamicImage, GenericImageView};
+use image::{DynamicImage, GenericImageView, ImageFormat};
 use rgb::FromSlice;
 use std::fs;
-use std::io::Write;
+use std::io::{Write, Cursor};
 use std::path::Path;
 use std::process::Command;
+use base64::{Engine as _, engine::general_purpose};
+use tauri::{command, State};
+use moka::future::Cache;
+
+pub struct ImageCache(pub Cache<String, String>);
 
 pub fn process_jpg(path: &Path, quality: u8) -> u64 {
     let original_size = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
@@ -129,4 +134,25 @@ pub fn generate_avif(img: &DynamicImage, path: &Path, original_size: u64) -> u64
         Err(e) => eprintln!("AVIF Error for {:?}: {}", path, e),
     }
     0
+}
+
+#[command]
+pub async fn generate_thumbnail(path: String, state: State<'_, ImageCache>) -> Result<String, String> {
+    if let Some(cached_b64) = state.0.get(&path).await {
+        return Ok(cached_b64);
+    }
+
+    let path_clone = path.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        let img = image::open(&path_clone).map_err(|e| e.to_string())?;
+        let thumbnail = img.thumbnail(128, 128);
+        let mut buffer = Cursor::new(Vec::new());
+        thumbnail.write_to(&mut buffer, ImageFormat::Png).map_err(|e| e.to_string())?;
+        let encoded = general_purpose::STANDARD.encode(buffer.get_ref());
+        Ok::<String, String>(format!("data:image/png;base64,{}", encoded))
+    }).await.map_err(|e| e.to_string())??;
+
+    state.0.insert(path, result.clone()).await;
+
+    Ok(result)
 }

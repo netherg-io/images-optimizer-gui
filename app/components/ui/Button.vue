@@ -16,7 +16,12 @@ defineProps({
   theme: {
     type: String,
     default: 'primary',
-    validator: (v) => ['primary', 'secondary'].includes(v),
+    validator: (v) => ['primary', 'secondary', 'warn'].includes(v),
+  },
+  size: {
+    type: String,
+    default: 'md',
+    validator: (v) => ['md', 'sm', 'xs'].includes(v),
   },
 });
 </script>
@@ -24,7 +29,10 @@ defineProps({
 <template>
   <button
     class="ui-button"
-    :class="{ [`ui-button--theme--${theme}`]: !!theme }"
+    :class="{
+      [`ui-button--theme--${theme}`]: !!theme,
+      [`ui-button--size--${size}`]: !!size,
+    }"
   >
     <CIcon
       v-if="icon && iconPos === 'left'"
@@ -51,13 +59,12 @@ defineProps({
   $parent: &;
 
   display: flex;
-  gap: em(12);
   align-items: center;
   justify-content: center;
-  padding: em(16);
-  border-radius: em(14);
+  background-color: transparent;
+  border: 1px solid transparent;
   transition: $time-normal $ease;
-  transition-property: border-color, background-color;
+  transition-property: color, border-color, background-color;
 
   &__font {
     @include s1;
@@ -66,7 +73,6 @@ defineProps({
   &__icon {
     width: em(20);
     height: em(20);
-    color: $icon-color-secondary;
     object-fit: contain;
     transition: color $time-normal $ease;
   }
@@ -74,7 +80,7 @@ defineProps({
   &--theme {
     &--primary {
       background-color: $background-color-primary;
-      border: 1px solid $border-color-secondary;
+      border-color: $border-color-secondary;
 
       @include hover {
         background-color: $background-color-tertiary;
@@ -83,6 +89,47 @@ defineProps({
       #{$parent} {
         &__icon {
           color: $icon-color-secondary;
+        }
+      }
+    }
+
+    &--warn {
+      color: $text-color-warn;
+
+      @include hover {
+        background-color: $background-color-warn;
+      }
+
+      #{$parent} {
+        &__icon {
+          color: $icon-color-warn;
+        }
+      }
+    }
+  }
+
+  &--size {
+    &--md {
+      gap: em(12);
+      padding: em(16);
+      border-radius: em(14);
+    }
+
+    &--sm {
+      gap: em(8);
+      padding: em(8) em(16);
+      border-radius: em(10);
+    }
+
+    &--xs {
+      gap: em(4);
+      padding: em(8);
+      border-radius: em(10);
+
+      #{$parent} {
+        &__icon {
+          width: em(16);
+          height: em(16);
         }
       }
     }

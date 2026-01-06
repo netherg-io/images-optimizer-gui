@@ -9,6 +9,8 @@ definePageMeta({
     <SectionHead description="sections.head.description" />
 
     <SectionAddFiles />
+
+    <SectionFilesList />
   </div>
 </template>
 

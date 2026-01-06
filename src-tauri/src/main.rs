@@ -9,15 +9,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
+use moka::future::Cache;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, State, Window};
 use walkdir::WalkDir;
 
 use fs_utils::copy_dir_recursive;
-use image_ops::{generate_avif, generate_webp, process_jpg, process_png};
+use image_ops::{generate_avif, generate_webp, process_jpg, process_png, generate_thumbnail, ImageCache};
 use tools::get_png_tools;
 
 struct AppState {
@@ -286,13 +287,22 @@ fn perform_optimization(window: &Window, config: OptimizeConfig) -> Result<Final
 }
 
 fn main() {
+    let cache = Cache::builder()
+        .max_capacity(500)
+        .time_to_idle(Duration::from_secs(30 * 60))
+        .build();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             is_processing: Mutex::new(false),
         })
-        .invoke_handler(tauri::generate_handler![run_optimization])
+        .manage(ImageCache(cache))
+        .invoke_handler(tauri::generate_handler![
+            run_optimization,
+            generate_thumbnail
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -1,4 +1,10 @@
 {
+  "common": {
+    "clear-all": "Clear All",
+    "plurals": {
+      "files": "{count} file | {count} files"
+    }
+  },
   "sections": {
     "head": {
       "description": "Compress and convert your images to modern formats"
@@ -12,6 +18,10 @@
         "Add Files",
         "Add Folder"
       ]
+    },
+    "files-list": {
+      "title": "Images",
+      "subtitle": "Total size:"
     }
   }
 }

@@ -1,4 +1,6 @@
 <script setup>
+import { resolveUrl } from '@/utils/helpers';
+
 const props = defineProps({
   src: {
     type: String,
@@ -24,20 +26,28 @@ const props = defineProps({
   },
 });
 
-const {
-  app: { baseURL },
-} = useRuntimeConfig();
-
 const imageSrc = computed(() => {
-  return combineURLs(baseURL, props.src);
+  return resolveUrl(props.src);
 });
 
 const srcSet = computed(() => {
-  if (!props.srcset) return;
+  if (!props.srcset) return undefined;
 
   return props.srcset
     .split(',')
-    .map((src) => combineURLs(baseURL, src.trim()))
+    .map((entry) => {
+      const trimmed = entry.trim();
+      const spaceIndex = trimmed.lastIndexOf(' ');
+
+      if (spaceIndex === -1) {
+        return resolveUrl(trimmed);
+      }
+
+      const url = trimmed.slice(0, spaceIndex);
+      const descriptor = trimmed.slice(spaceIndex + 1);
+
+      return `${resolveUrl(url)} ${descriptor}`;
+    })
     .join(', ');
 });
 </script>
