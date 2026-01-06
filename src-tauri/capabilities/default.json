@@ -8,6 +8,9 @@
   "permissions": [
     "core:default",
     "core:window:allow-show",
-    "core:window:allow-set-focus"
+    "core:window:allow-set-focus",
+    "fs:default",
+    "fs:allow-home-read-recursive",
+    "dialog:default"
   ]
 }

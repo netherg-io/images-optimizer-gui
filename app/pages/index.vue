@@ -7,6 +7,8 @@ definePageMeta({
 <template>
   <div class="pages-index">
     <SectionHead description="sections.head.description" />
+
+    <SectionAddFiles />
   </div>
 </template>
 

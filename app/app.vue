@@ -14,9 +14,12 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 useTheme();
 
 onMounted(async () => {
-  await getCurrentWindow().show();
-
-  await getCurrentWindow().setFocus();
+  try {
+    await getCurrentWindow().show();
+    await getCurrentWindow().setFocus();
+  } finally {
+    await getCurrentWindow().show();
+  }
 });
 </script>
 

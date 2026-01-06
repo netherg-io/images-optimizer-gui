@@ -14,9 +14,12 @@ $background-color-secondary: light-dark(#F1F5F9, #314158);
 $background-color-tertiary: light-dark(#F8FAFC, #314158);
 // icons
 $icon-color-primary: light-dark(#90A1B9, #62748E);
+$icon-color-secondary: light-dark(#45556C, #90A1B9);
 // borders
-$border-color-primary: light-dark(#E2E8F0, #45556C);
+$border-color-primary: light-dark(#E2E8F0, #050608ff);
 $border-color-secondary: light-dark(#E2E8F0, #314158);
+$border-color-tertiary: light-dark(#CAD5E2, #314158);
+$border-color-accent: light-dark(#90A1B9, #45556C);
 
 // paths
 // --------------------------

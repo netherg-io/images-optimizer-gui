@@ -1,8 +1,8 @@
 use std::ffi::OsStr;
+use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use tempfile::TempDir;
-use std::io::Write;
-use std::fs;
 
 #[cfg(target_os = "windows")]
 const PNGQUANT_BIN: &[u8] = include_bytes!("../bin/pngquant.exe");
@@ -37,6 +37,10 @@ pub fn get_png_tools() -> Result<(Option<TempDir>, ToolPath, ToolPath), std::io:
 
     #[cfg(not(target_os = "windows"))]
     {
-        Ok((None, ToolPath::Command("pngquant".to_string()), ToolPath::Command("oxipng".to_string())))
+        Ok((
+            None,
+            ToolPath::Command("pngquant".to_string()),
+            ToolPath::Command("oxipng".to_string()),
+        ))
     }
 }

@@ -1,24 +1,24 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod tools;
 mod fs_utils;
 mod image_ops;
+mod tools;
 
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex}; 
-use std::path::{Path, PathBuf};
 use std::ffi::OsStr;
 use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use tauri::{Window, Emitter, State}; 
+use tauri::{Emitter, State, Window};
 use walkdir::WalkDir;
 
-use tools::get_png_tools;
 use fs_utils::copy_dir_recursive;
-use image_ops::{process_jpg, process_png, generate_webp, generate_avif};
+use image_ops::{generate_avif, generate_webp, process_jpg, process_png};
+use tools::get_png_tools;
 
 struct AppState {
     is_processing: Mutex<bool>,
@@ -51,13 +51,15 @@ struct FinalResult {
 
 #[tauri::command]
 async fn run_optimization(
-    window: Window, 
-    config: OptimizeConfig, 
-    state: State<'_, AppState>
+    window: Window,
+    config: OptimizeConfig,
+    state: State<'_, AppState>,
 ) -> Result<FinalResult, String> {
-    
     {
-        let mut processing = state.is_processing.lock().map_err(|_| "Failed to lock state")?;
+        let mut processing = state
+            .is_processing
+            .lock()
+            .map_err(|_| "Failed to lock state")?;
         if *processing {
             return Err("Optimization is already in progress.".to_string());
         }
@@ -65,12 +67,15 @@ async fn run_optimization(
     }
 
     let window_clone = window.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || {
-        perform_optimization(&window_clone, config)
-    }).await;
+    let result =
+        tauri::async_runtime::spawn_blocking(move || perform_optimization(&window_clone, config))
+            .await;
 
     {
-        let mut processing = state.is_processing.lock().map_err(|_| "Failed to lock state")?;
+        let mut processing = state
+            .is_processing
+            .lock()
+            .map_err(|_| "Failed to lock state")?;
         *processing = false;
     }
 
@@ -84,8 +89,8 @@ async fn run_optimization(
 fn perform_optimization(window: &Window, config: OptimizeConfig) -> Result<FinalResult, String> {
     let total_start_time = Instant::now();
 
-    let (_tmp_dir, pq, oxi) = get_png_tools()
-        .map_err(|e| format!("Failed to setup tools: {}", e))?;
+    let (_tmp_dir, pq, oxi) =
+        get_png_tools().map_err(|e| format!("Failed to setup tools: {}", e))?;
 
     let supported_exts = ["png", "jpg", "jpeg"];
     let mut files_to_process: Vec<(PathBuf, PathBuf)> = Vec::new();
@@ -113,8 +118,11 @@ fn perform_optimization(window: &Window, config: OptimizeConfig) -> Result<Final
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|e| {
-                e.path().extension()
-                    .map(|ext| supported_exts.contains(&ext.to_string_lossy().to_lowercase().as_str()))
+                e.path()
+                    .extension()
+                    .map(|ext| {
+                        supported_exts.contains(&ext.to_string_lossy().to_lowercase().as_str())
+                    })
                     .unwrap_or(false)
             })
             .map(|e| {
@@ -123,11 +131,12 @@ fn perform_optimization(window: &Window, config: OptimizeConfig) -> Result<Final
             })
             .collect();
         files_to_process.extend(scanned);
-
     } else {
         for p_str in &config.paths {
             let path = Path::new(p_str);
-            if !path.exists() { continue; }
+            if !path.exists() {
+                continue;
+            }
 
             if path.is_dir() {
                 let target_dir_root = if config.replace {
@@ -140,7 +149,7 @@ fn perform_optimization(window: &Window, config: OptimizeConfig) -> Result<Final
 
                 if !config.replace {
                     if let Err(e) = copy_dir_recursive(path, &target_dir_root) {
-                        eprintln!("Error copying {:?}: {}", path, e); 
+                        eprintln!("Error copying {:?}: {}", path, e);
                         continue;
                     }
                 }
@@ -149,8 +158,12 @@ fn perform_optimization(window: &Window, config: OptimizeConfig) -> Result<Final
                     .into_iter()
                     .filter_map(|e| e.ok())
                     .filter(|e| {
-                        e.path().extension()
-                            .map(|ext| supported_exts.contains(&ext.to_string_lossy().to_lowercase().as_str()))
+                        e.path()
+                            .extension()
+                            .map(|ext| {
+                                supported_exts
+                                    .contains(&ext.to_string_lossy().to_lowercase().as_str())
+                            })
                             .unwrap_or(false)
                     })
                     .map(|e| {
@@ -162,8 +175,14 @@ fn perform_optimization(window: &Window, config: OptimizeConfig) -> Result<Final
                 continue;
             }
 
-            let ext = path.extension().unwrap_or(OsStr::new("")).to_string_lossy().to_lowercase();
-            if !supported_exts.contains(&ext.as_str()) { continue; }
+            let ext = path
+                .extension()
+                .unwrap_or(OsStr::new(""))
+                .to_string_lossy()
+                .to_lowercase();
+            if !supported_exts.contains(&ext.as_str()) {
+                continue;
+            }
 
             let target_path = if config.replace {
                 path.to_path_buf()
@@ -173,10 +192,16 @@ fn perform_optimization(window: &Window, config: OptimizeConfig) -> Result<Final
                 path.parent().unwrap_or(Path::new(".")).join(new_name)
             };
 
-            let naming_base = if config.replace { target_path.clone() } else { path.to_path_buf() };
+            let naming_base = if config.replace {
+                target_path.clone()
+            } else {
+                path.to_path_buf()
+            };
 
             if !config.replace {
-                if let Err(_) = fs::copy(path, &target_path) { continue; }
+                if let Err(_) = fs::copy(path, &target_path) {
+                    continue;
+                }
             }
             files_to_process.push((target_path, naming_base));
         }
@@ -191,19 +216,32 @@ fn perform_optimization(window: &Window, config: OptimizeConfig) -> Result<Final
     let total_input_size = AtomicU64::new(0);
     let saved_orig = AtomicU64::new(0);
 
-    let _ = window.emit("progress", ProgressPayload {
-        total: total_files,
-        done: 0,
-        current_file: "Starting...".into(),
-    });
+    let _ = window.emit(
+        "progress",
+        ProgressPayload {
+            total: total_files,
+            done: 0,
+            current_file: "Starting...".into(),
+        },
+    );
 
     files_to_process.par_iter().for_each(|(path, naming_path)| {
-        let ext = path.extension().unwrap_or_default().to_string_lossy().to_lowercase();
+        let ext = path
+            .extension()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_lowercase();
         let original_file_size = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-        
+
         total_input_size.fetch_add(original_file_size, Ordering::Relaxed);
 
-        let _ = window.emit("file_start", path.file_name().unwrap_or_default().to_string_lossy().to_string());
+        let _ = window.emit(
+            "file_start",
+            path.file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string(),
+        );
 
         if config.webp || config.avif {
             if let Ok(img) = image::open(path) {
@@ -224,13 +262,20 @@ fn perform_optimization(window: &Window, config: OptimizeConfig) -> Result<Final
         saved_orig.fetch_add(s_orig, Ordering::Relaxed);
 
         let done = files_done_counter.fetch_add(1, Ordering::Relaxed) + 1;
-        
-        let current_file_name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-        let _ = window.emit("progress", ProgressPayload {
-            total: total_files,
-            done,
-            current_file: current_file_name,
-        });
+
+        let current_file_name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        let _ = window.emit(
+            "progress",
+            ProgressPayload {
+                total: total_files,
+                done,
+                current_file: current_file_name,
+            },
+        );
     });
 
     Ok(FinalResult {
@@ -242,8 +287,10 @@ fn perform_optimization(window: &Window, config: OptimizeConfig) -> Result<Final
 
 fn main() {
     tauri::Builder::default()
-        .manage(AppState { 
-            is_processing: Mutex::new(false) 
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
+        .manage(AppState {
+            is_processing: Mutex::new(false),
         })
         .invoke_handler(tauri::generate_handler![run_optimization])
         .run(tauri::generate_context!())
