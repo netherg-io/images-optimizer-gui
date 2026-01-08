@@ -1,55 +1,15 @@
 <script setup>
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
-import { downloadDir } from '@tauri-apps/api/path'; // Import needed for 'downloads' option
+import { storeToRefs } from 'pinia';
 
 const filesStore = useFilesStore();
-const { totalItems, sourcePaths } = storeToRefs(filesStore);
+const { totalItems } = storeToRefs(filesStore);
 
-const quality = ref('80');
-const optimization = ref(['compress']);
-const path = ref(['same']);
-const saveMethod = ref('rename');
-const savePath = ref('');
+const optStore = useOptimizationStore();
+const { quality, optimization, path, saveMethod, savePath, isProcessing } =
+  storeToRefs(optStore);
 
-await listen('progress', (event) => {
-  const { total, done, current_file } = event.payload;
-  const percentage = Math.round((done / total) * 100);
-  console.log(`Processing: ${current_file} (${percentage}%)`);
-});
-
-async function startOptimization() {
-  try {
-    let outputDir = null;
-
-    if (path.value.includes('downloads')) {
-      outputDir = await downloadDir();
-    } else if (path.value.includes('custom')) {
-      outputDir = savePath.value;
-    }
-
-    const config = {
-      paths: sourcePaths.value,
-      jpg_q: Math.max(10, parseInt(quality.value)),
-      png_max: Math.max(10, parseInt(quality.value)),
-      png_min: Math.max(10, parseInt(quality.value) - 15),
-
-      webp: optimization.value.includes('webp'),
-      avif: optimization.value.includes('avif'),
-
-      replace: path.value.includes('same') && saveMethod.value === 'overwrite',
-
-      output_dir: outputDir,
-    };
-
-    console.log('Sending config:', config);
-
-    const result = await invoke('run_optimization', { config });
-
-    console.log('Finished!', result);
-  } catch (error) {
-    console.error('Optimization failed:', error);
-  }
+function handleStart() {
+  optStore.startOptimization();
 }
 </script>
 
@@ -92,7 +52,8 @@ async function startOptimization() {
         <UiButton
           :title="`${$t('sections.options.button')} ${$t('common.plurals.images', { count: totalItems })}`"
           theme="accent"
-          @click="startOptimization"
+          :disabled="isProcessing"
+          @click="handleStart"
         />
 
         <div class="options-block__divider"></div>

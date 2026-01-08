@@ -90,5 +90,37 @@
         "button": "Browse"
       }
     }
+  },
+  "modals": {
+    "status":{
+      "title": {
+        "done": "Done!",
+        "canceled": "Canceled",
+        "error": "Error",
+        "optimizing": "Optimizing..."
+      },
+      "stats": [
+        "Files",
+        "Total Time",
+        "Saved"
+      ],
+      "table": {
+        "head": ["Format", "Size"],
+        "label": {
+          "original": "Original",
+          "optimized": "Optimized",
+          "webp": "WebP Generation",
+          "avif": "AVIF Generation"
+        }
+      },
+      "tags": {
+        "title": "Processing Time",
+        "compress": "Compressing:"
+      },
+      "button": {
+        "cancel": "Cancel",
+        "close": "Close"
+      }
+    }
   }
 }

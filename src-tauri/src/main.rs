@@ -7,11 +7,15 @@ mod tools;
 mod types;
 
 use moka::future::Cache;
-use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use image_ops::{generate_thumbnail, ImageCache};
-use commands::run_optimization;
+use commands::{
+    cancel_optimization, generate_thumbnail, get_last_result, get_processing_state,
+    run_optimization,
+};
+use image_ops::ImageCache;
 use types::AppState;
 
 fn main() {
@@ -21,16 +25,22 @@ fn main() {
         .build();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             is_processing: Mutex::new(false),
+            should_cancel: Arc::new(AtomicBool::new(false)),
+            last_result: Mutex::new(None),
         })
         .manage(ImageCache(cache))
         .invoke_handler(tauri::generate_handler![
             run_optimization,
-            generate_thumbnail
+            cancel_optimization,
+            generate_thumbnail,
+            get_processing_state,
+            get_last_result
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

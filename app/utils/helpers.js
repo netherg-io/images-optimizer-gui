@@ -9,6 +9,12 @@ export const formatSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+export function formatTime(seconds) {
+  if (!seconds) return '0s';
+  if (seconds < 1) return '< 1s';
+  return seconds.toFixed(1) + 's';
+}
+
 /**
  * Helper to resolve a single URL.
  * 1. Checks if it is a local absolute path (Windows/Unix) and converts it for Tauri.

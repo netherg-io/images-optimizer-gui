@@ -95,8 +95,8 @@ defineProps({
       }
 
       &__icon-wrapper {
-        background-color: $background-color-additional;
-        border-color: $background-color-additional;
+        background-color: $accent-color-primary;
+        border-color: $accent-color-primary;
       }
     }
   }

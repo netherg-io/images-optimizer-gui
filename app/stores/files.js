@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
 import { processPaths } from '@/utils/fileScanner';
 
 export const useFilesStore = defineStore('files', () => {
@@ -13,8 +12,24 @@ export const useFilesStore = defineStore('files', () => {
     return items.value.reduce((acc, item) => acc + (item.fileCount || 0), 0);
   });
 
-  const sourcePaths = computed(() => {
-    return items.value.map((item) => item.path);
+  const fileTasks = computed(() => {
+    const tasks = [];
+
+    const traverse = (node, rootPath) => {
+      const currentRoot = rootPath || node.path;
+
+      if (node.type === 'file') {
+        tasks.push({
+          path: node.path,
+          root: currentRoot,
+        });
+      } else if (node.children && node.children.length > 0) {
+        node.children.forEach((child) => traverse(child, currentRoot));
+      }
+    };
+
+    items.value.forEach((item) => traverse(item, null));
+    return tasks;
   });
 
   const addItemsFromPaths = async (paths) => {
@@ -79,7 +94,7 @@ export const useFilesStore = defineStore('files', () => {
     items,
     totalSize,
     totalItems,
-    sourcePaths,
+    fileTasks,
     addItemsFromPaths,
     removeById,
     clearAll,

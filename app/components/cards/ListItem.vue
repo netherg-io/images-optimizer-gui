@@ -145,10 +145,12 @@ const toggleFolder = () => {
   }
 
   &__delete {
+    flex-shrink: 0;
     margin-left: auto;
   }
 
   &__arrow {
+    flex-shrink: 0;
     width: em(12);
     height: em(7);
     rotate: 90deg;
@@ -160,6 +162,7 @@ const toggleFolder = () => {
   }
 
   &__folder-wrapper {
+    flex-shrink: 0;
     padding: em(10);
     background-color: $background-color-additional;
     border-radius: em(10);
@@ -174,6 +177,7 @@ const toggleFolder = () => {
   }
 
   &__image {
+    flex-shrink: 0;
     width: em(64);
     height: em(64);
     overflow: hidden;
@@ -185,6 +189,14 @@ const toggleFolder = () => {
     display: flex;
     flex-direction: column;
     gap: em(4);
+  }
+
+  &__name {
+    & > p {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 
   &__meta {
