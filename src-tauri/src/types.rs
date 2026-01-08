@@ -1,10 +1,20 @@
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::AtomicBool; // Import AtomicBool
-use std::sync::{Arc, Mutex}; // Import Arc
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
+
+#[derive(Debug, Serialize, Clone)]
+pub struct FileNode {
+    pub path: String,
+    pub name: String,
+    pub is_dir: bool,
+    pub children: Option<Vec<FileNode>>,
+    pub size: u64,
+    pub file_count: usize,
+}
 
 pub struct AppState {
     pub is_processing: Mutex<bool>,
-    pub should_cancel: Arc<AtomicBool>, // Add this field
+    pub should_cancel: Arc<AtomicBool>,
     pub last_result: Mutex<Option<FinalResult>>,
 }
 
@@ -22,7 +32,7 @@ pub struct OptimizeConfig {
     pub png_max: u8,
     pub webp: bool,
     pub avif: bool,
-    #[serde(default = "default_true")] // На случай старых вызовов
+    #[serde(default = "default_true")]
     pub optimize_original: bool,
     pub replace: bool,
     pub output_dir: Option<String>,

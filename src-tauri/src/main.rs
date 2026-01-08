@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use commands::{
     cancel_optimization, generate_thumbnail, get_last_result, get_processing_state,
-    run_optimization,
+    run_optimization, scan_dropped_paths
 };
 use image_ops::ImageCache;
 use types::AppState;
@@ -40,7 +40,8 @@ fn main() {
             cancel_optimization,
             generate_thumbnail,
             get_processing_state,
-            get_last_result
+            get_last_result,
+            scan_dropped_paths
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

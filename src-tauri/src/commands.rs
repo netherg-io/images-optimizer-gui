@@ -1,3 +1,6 @@
+use std::fs;
+use std::path::Path;
+use rayon::prelude::*;
 use base64::{engine::general_purpose, Engine as _};
 use image::ImageFormat;
 use std::io::Cursor;
@@ -6,7 +9,7 @@ use tauri::{command, Emitter, State, Window};
 
 use crate::image_ops::ImageCache;
 use crate::optimizer::perform_optimization;
-use crate::types::{AppState, FinalResult, OptimizeConfig};
+use crate::types::{AppState, FinalResult, OptimizeConfig, FileNode};
 
 #[command]
 pub fn get_last_result(state: State<'_, AppState>) -> Option<FinalResult> {
@@ -122,4 +125,84 @@ pub async fn run_optimization(
     let _ = window.emit("processing_state_change", false);
 
     final_output
+}
+
+
+fn is_image(path: &Path) -> bool {
+    if let Some(ext) = path.extension() {
+        let ext_str = ext.to_string_lossy().to_lowercase();
+        return ["jpg", "jpeg", "png", "webp", "avif"].contains(&ext_str.as_str());
+    }
+    false
+}
+
+fn scan_dir_parallel(path: &Path) -> Option<FileNode> {
+    let Ok(entries) = fs::read_dir(path) else { return None };
+
+    let entries: Vec<_> = entries.filter_map(|e| e.ok()).collect();
+
+    let children: Vec<FileNode> = entries.par_iter()
+        .filter_map(|entry| {
+            let path = entry.path();
+            if path.is_dir() {
+                scan_dir_parallel(&path)
+            } else if is_image(&path) {
+                let size = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+                Some(FileNode {
+                    path: path.to_string_lossy().to_string(),
+                    name: path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                    is_dir: false,
+                    children: None,
+                    size,
+                    file_count: 1,
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if children.is_empty() {
+        return None;
+    }
+
+    let total_size: u64 = children.iter().map(|c| c.size).sum();
+    let total_count: usize = children.iter().map(|c| if c.is_dir { c.file_count } else { 1 }).sum();
+
+    Some(FileNode {
+        path: path.to_string_lossy().to_string(),
+        name: path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+        is_dir: true,
+        children: Some(children),
+        size: total_size,
+        file_count: total_count,
+    })
+}
+
+#[command]
+pub async fn scan_dropped_paths(paths: Vec<String>) -> Result<Vec<FileNode>, String> {
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        paths.par_iter()
+            .filter_map(|p| {
+                let path = Path::new(p);
+                if path.is_dir() {
+                    scan_dir_parallel(path)
+                } else if is_image(path) {
+                    let size = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+                     Some(FileNode {
+                        path: path.to_string_lossy().to_string(),
+                        name: path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                        is_dir: false,
+                        children: None,
+                        size,
+                        file_count: 1,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<FileNode>>()
+    }).await.map_err(|e| e.to_string())?;
+
+    Ok(result)
 }
