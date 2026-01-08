@@ -16,7 +16,7 @@ defineProps({
   theme: {
     type: String,
     default: 'primary',
-    validator: (v) => ['primary', 'accent', 'warn'].includes(v),
+    validator: (v) => ['primary', 'accent', 'warn', 'browse'].includes(v),
   },
   size: {
     type: String,
@@ -108,12 +108,32 @@ defineProps({
 
       @include hover {
         background-color: $background-color-warn;
+        border-color: $background-color-warn;
       }
 
       #{$parent} {
         &__icon {
           color: $icon-color-warn;
         }
+      }
+    }
+
+    &--browse {
+      color: $color-white;
+      background-color: $background-color-browse;
+      border-color: $background-color-browse;
+
+      @include hover {
+        background-color: color-mix(
+          in srgb,
+          #{$background-color-browse},
+          #{$color-white} 20%
+        );
+        border-color: color-mix(
+          in srgb,
+          #{$background-color-browse},
+          #{$color-white} 20%
+        );
       }
     }
   }

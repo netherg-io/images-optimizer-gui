@@ -139,6 +139,12 @@ async function startOptimization() {
             },
           ]"
         />
+
+        <UiFolderPicker
+          v-if="path.includes('custom')"
+          v-model="savePath"
+          :title="$t('sections.options.folder-picker.title')"
+        />
       </SmoothList>
     </div>
   </div>

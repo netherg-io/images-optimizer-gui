@@ -83,7 +83,12 @@
           ]
         }
       ],
-      "button": "Optimize"
+      "button": "Optimize",
+      "folder-picker": {
+        "title": "Destination Folder",
+        "placeholder": "No folder selected",
+        "button": "Browse"
+      }
     }
   }
 }

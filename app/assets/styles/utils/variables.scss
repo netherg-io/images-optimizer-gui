@@ -9,6 +9,7 @@ $color-black: #000000;
 $text-color-primary: light-dark(#0f172b, #F1F5F9);
 $text-color-secondary: light-dark(#45556C, #90A1B9);
 $text-color-warn: light-dark(#E7000B, #FF6467);
+$text-color-placeholder: light-dark(rgba(69, 85, 108, 0.50), rgba(202, 213, 226, 0.50));
 // background
 $background-color-primary: light-dark(#fff, #1D293D);
 $background-color-secondary: light-dark(#F1F5F9, #314158);
@@ -16,6 +17,7 @@ $background-color-tertiary: light-dark(#F8FAFC, #314158);
 $background-color-accent: light-dark(#EFF6FF, #162456);
 $background-color-additional: light-dark(#DBEAFE, #1C398E);
 $background-color-warn: light-dark(#FEF2F2, #460809);
+$background-color-browse: light-dark(#0F172B, #314158);
 // icons
 $icon-color-primary: light-dark(#90A1B9, #62748E);
 $icon-color-secondary: light-dark(#45556C, #90A1B9);
