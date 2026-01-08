@@ -6,7 +6,7 @@ import { downloadDir } from '@tauri-apps/api/path'; // Import needed for 'downlo
 const filesStore = useFilesStore();
 const { totalItems, sourcePaths } = storeToRefs(filesStore);
 
-const quality = ref(80);
+const quality = ref('80');
 const optimization = ref(['compress']);
 const path = ref(['same']);
 const saveMethod = ref('rename');
@@ -30,9 +30,9 @@ async function startOptimization() {
 
     const config = {
       paths: sourcePaths.value,
-      jpg_q: Math.max(10, quality.value),
-      png_max: Math.max(10, quality.value),
-      png_min: Math.max(10, quality.value - 15),
+      jpg_q: Math.max(10, parseInt(quality.value)),
+      png_max: Math.max(10, parseInt(quality.value)),
+      png_min: Math.max(10, parseInt(quality.value) - 15),
 
       webp: optimization.value.includes('webp'),
       avif: optimization.value.includes('avif'),
