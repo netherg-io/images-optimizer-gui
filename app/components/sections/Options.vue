@@ -1,7 +1,7 @@
 <script setup>
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import SmoothList from '../animation/SmoothList.vue';
+import { downloadDir } from '@tauri-apps/api/path'; // Import needed for 'downloads' option
 
 const filesStore = useFilesStore();
 const { totalItems, sourcePaths } = storeToRefs(filesStore);
@@ -9,29 +9,42 @@ const { totalItems, sourcePaths } = storeToRefs(filesStore);
 const quality = ref(80);
 const optimization = ref(['compress']);
 const path = ref(['same']);
-const saveMethod = ref();
-const savePath = ref();
+const saveMethod = ref('rename');
+const savePath = ref('');
 
 await listen('progress', (event) => {
   const { total, done, current_file } = event.payload;
   const percentage = Math.round((done / total) * 100);
-
   console.log(`Processing: ${current_file} (${percentage}%)`);
 });
 
 async function startOptimization() {
   try {
-    const result = await invoke('run_optimization', {
-      config: {
-        paths: sourcePaths.value,
-        jpg_q: 80,
-        png_min: 65,
-        png_max: 80,
-        webp: false,
-        avif: false,
-        replace: false,
-      },
-    });
+    let outputDir = null;
+
+    if (path.value.includes('downloads')) {
+      outputDir = await downloadDir();
+    } else if (path.value.includes('custom')) {
+      outputDir = savePath.value;
+    }
+
+    const config = {
+      paths: sourcePaths.value,
+      jpg_q: Math.max(10, quality.value),
+      png_max: Math.max(10, quality.value),
+      png_min: Math.max(10, quality.value - 15),
+
+      webp: optimization.value.includes('webp'),
+      avif: optimization.value.includes('avif'),
+
+      replace: path.value.includes('same') && saveMethod.value === 'overwrite',
+
+      output_dir: outputDir,
+    };
+
+    console.log('Sending config:', config);
+
+    const result = await invoke('run_optimization', { config });
 
     console.log('Finished!', result);
   } catch (error) {
@@ -43,7 +56,7 @@ async function startOptimization() {
 <template>
   <div class="options-block">
     <div class="container">
-      <SmoothList tag="div" class="options-block__container">
+      <ASmoothList tag="div" class="options-block__container">
         <UiSelect
           v-model="optimization"
           multi
@@ -145,7 +158,7 @@ async function startOptimization() {
           v-model="savePath"
           :title="$t('sections.options.folder-picker.title')"
         />
-      </SmoothList>
+      </ASmoothList>
     </div>
   </div>
 </template>

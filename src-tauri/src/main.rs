@@ -1,10 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod fs_utils;
 mod image_ops;
 mod tools;
 
-use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -17,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use tauri::{Emitter, State, Window};
 use walkdir::WalkDir;
 
-use fs_utils::copy_dir_recursive;
 use image_ops::{
     generate_avif, generate_thumbnail, generate_webp, process_jpg, process_png, ImageCache,
 };
@@ -36,6 +33,7 @@ pub struct OptimizeConfig {
     pub webp: bool,
     pub avif: bool,
     pub replace: bool,
+    pub output_dir: Option<String>,
 }
 
 #[derive(Clone, Serialize)]
@@ -92,126 +90,72 @@ async fn run_optimization(
 fn perform_optimization(window: &Window, config: OptimizeConfig) -> Result<FinalResult, String> {
     let total_start_time = Instant::now();
 
-    let (_tmp_dir, pq, oxi) =
-        get_png_tools().map_err(|e| format!("Failed to setup tools: {}", e))?;
-
+    let (_tmp_dir, pq, oxi) = get_png_tools().map_err(|e| format!("Failed to setup tools: {}", e))?;
     let supported_exts = ["png", "jpg", "jpeg"];
-    let mut files_to_process: Vec<(PathBuf, PathBuf)> = Vec::new();
+    let _ = window.emit("status_update", "Scanning files...");
 
-    let _ = window.emit("status_update", "Scanning and prepping files...");
+    let is_supported = |p: &Path| {
+        p.extension()
+            .map(|ext| {
+                supported_exts.contains(&ext.to_string_lossy().to_lowercase().as_str())
+            })
+            .unwrap_or(false)
+    };
 
-    let is_single_dir_mode = config.paths.len() == 1 && Path::new(&config.paths[0]).is_dir();
+    let mut inputs: Vec<(PathBuf, PathBuf)> = Vec::new();
 
-    if is_single_dir_mode {
-        let input_path = PathBuf::from(&config.paths[0]);
-        let target_dir: PathBuf;
-
-        if config.replace {
-            target_dir = input_path.clone();
-        } else {
-            let root_name = input_path.file_name().unwrap_or_default().to_string_lossy();
-            let new_name = format!("{}__optimized", root_name);
-            target_dir = input_path.parent().unwrap_or(Path::new(".")).join(new_name);
-
-            copy_dir_recursive(&input_path, &target_dir)
-                .map_err(|e| format!("Copy failed: {}", e))?;
+    for p_str in &config.paths {
+        let root_path = Path::new(p_str);
+        if !root_path.exists() {
+            continue;
         }
 
-        let scanned: Vec<(PathBuf, PathBuf)> = WalkDir::new(&target_dir)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .map(|ext| {
-                        supported_exts.contains(&ext.to_string_lossy().to_lowercase().as_str())
-                    })
-                    .unwrap_or(false)
-            })
-            .map(|e| {
-                let p = e.into_path();
-                (p.clone(), p)
-            })
-            .collect();
-        files_to_process.extend(scanned);
-    } else {
-        for p_str in &config.paths {
-            let path = Path::new(p_str);
-            if !path.exists() {
-                continue;
-            }
-
-            if path.is_dir() {
-                let target_dir_root = if config.replace {
-                    path.to_path_buf()
-                } else {
-                    let root_name = path.file_name().unwrap_or_default().to_string_lossy();
-                    let new_name = format!("{}__optimized", root_name);
-                    path.parent().unwrap_or(Path::new(".")).join(new_name)
-                };
-
-                if !config.replace {
-                    if let Err(e) = copy_dir_recursive(path, &target_dir_root) {
-                        eprintln!("Error copying {:?}: {}", path, e);
-                        continue;
-                    }
-                }
-
-                let scanned: Vec<(PathBuf, PathBuf)> = WalkDir::new(&target_dir_root)
-                    .into_iter()
-                    .filter_map(|e| e.ok())
-                    .filter(|e| {
-                        e.path()
-                            .extension()
-                            .map(|ext| {
-                                supported_exts
-                                    .contains(&ext.to_string_lossy().to_lowercase().as_str())
-                            })
-                            .unwrap_or(false)
-                    })
-                    .map(|e| {
-                        let p = e.into_path();
-                        (p.clone(), p)
-                    })
-                    .collect();
-                files_to_process.extend(scanned);
-                continue;
-            }
-
-            let ext = path
-                .extension()
-                .unwrap_or(OsStr::new(""))
-                .to_string_lossy()
-                .to_lowercase();
-            if !supported_exts.contains(&ext.as_str()) {
-                continue;
-            }
-
-            let target_path = if config.replace {
-                path.to_path_buf()
-            } else {
-                let stem = path.file_stem().unwrap_or_default().to_string_lossy();
-                let new_name = format!("{}__optimized.{}", stem, ext);
-                path.parent().unwrap_or(Path::new(".")).join(new_name)
-            };
-
-            let naming_base = if config.replace {
-                target_path.clone()
-            } else {
-                path.to_path_buf()
-            };
-
-            if !config.replace {
-                if let Err(_) = fs::copy(path, &target_path) {
-                    continue;
+        if root_path.is_dir() {
+            for entry in WalkDir::new(root_path).into_iter().filter_map(|e| e.ok()) {
+                if is_supported(entry.path()) {
+                    inputs.push((entry.into_path(), root_path.to_path_buf()));
                 }
             }
-            files_to_process.push((target_path, naming_base));
+        } else if is_supported(root_path) {
+            inputs.push((root_path.to_path_buf(), root_path.to_path_buf()));
         }
     }
 
-    if files_to_process.is_empty() {
+    if inputs.is_empty() {
         return Err("No supported files found.".to_string());
+    }
+
+    let mut files_to_process: Vec<(PathBuf, PathBuf)> = Vec::new();
+
+    for (src_path, root_source) in inputs {
+        let output_path = if let Some(ref out_dir_str) = config.output_dir {
+            let out_base = Path::new(out_dir_str);
+            if root_source.is_dir() {
+                let dir_name = root_source.file_name().unwrap_or_default();
+                let relative_path = src_path.strip_prefix(&root_source).unwrap_or(&src_path);
+                out_base.join(dir_name).join(relative_path)
+            } else {
+                out_base.join(src_path.file_name().unwrap())
+            }
+        } else if config.replace {
+            src_path.clone()
+        } else {
+            let stem = src_path.file_stem().unwrap_or_default().to_string_lossy();
+            let ext = src_path.extension().unwrap_or_default().to_string_lossy();
+            let new_name = format!("{}__optimized.{}", stem, ext);
+            src_path.parent().unwrap_or(Path::new(".")).join(new_name)
+        };
+
+        if src_path != output_path {
+            if let Some(parent) = output_path.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            if let Err(_) = fs::copy(&src_path, &output_path) {
+                continue;
+            }
+        }
+
+        files_to_process.push((src_path, output_path));
     }
 
     let total_files = files_to_process.len() as u64;
@@ -228,55 +172,56 @@ fn perform_optimization(window: &Window, config: OptimizeConfig) -> Result<Final
         },
     );
 
-    files_to_process.par_iter().for_each(|(path, naming_path)| {
-        let ext = path
+    files_to_process.par_iter().for_each(|(src_path, dest_path)| {
+        let ext = dest_path
             .extension()
             .unwrap_or_default()
             .to_string_lossy()
             .to_lowercase();
-        let original_file_size = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-
+        let original_file_size = fs::metadata(src_path).map(|m| m.len()).unwrap_or(0);
         total_input_size.fetch_add(original_file_size, Ordering::Relaxed);
 
         let _ = window.emit(
             "file_start",
-            path.file_name()
+            src_path
+                .file_name()
                 .unwrap_or_default()
                 .to_string_lossy()
                 .to_string(),
         );
 
         if config.webp || config.avif {
-            if let Ok(img) = image::open(path) {
+            if let Ok(img) = image::open(src_path) {
                 if config.webp {
-                    let _ = generate_webp(&img, naming_path, 75.0, original_file_size);
+                    let _ = generate_webp(&img, dest_path, 75.0, original_file_size);
                 }
                 if config.avif {
-                    let _ = generate_avif(&img, naming_path, original_file_size);
+                    let _ = generate_avif(&img, dest_path, original_file_size);
                 }
             }
         }
 
         let s_orig = if ext == "png" {
-            process_png(path, &pq, &oxi, config.png_min, config.png_max)
+            process_png(dest_path, &pq, &oxi, config.png_min, config.png_max)
+        } else if ["jpg", "jpeg"].contains(&ext.as_str()) {
+            process_jpg(dest_path, config.jpg_q)
         } else {
-            process_jpg(path, config.jpg_q)
+            0
         };
+
         saved_orig.fetch_add(s_orig, Ordering::Relaxed);
 
         let done = files_done_counter.fetch_add(1, Ordering::Relaxed) + 1;
-
-        let current_file_name = path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
         let _ = window.emit(
             "progress",
             ProgressPayload {
                 total: total_files,
                 done,
-                current_file: current_file_name,
+                current_file: src_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string(),
             },
         );
     });
