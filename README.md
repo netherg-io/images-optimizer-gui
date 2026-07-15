@@ -69,14 +69,15 @@ Use `yarn tauri:dev` for local desktop development.
 
 ## Versioning and release
 
-`package.json` is the version source used by the helper. Keep package, Cargo, and Tauri versions synchronized:
+From a clean, up-to-date `main`, choose the SemVer increment:
 
 ```powershell
-yarn version:set 0.2.0
-yarn version:check
+yarn release patch
+yarn release minor
+yarn release major
 ```
 
-Pushes and pull requests run CI but never create releases. A matching `vX.Y.Z` tag creates a draft, prerelease Windows build and SHA-256 checksums. Before a public production release:
+The command synchronizes package, Cargo, and Tauri versions, commits the bump, and atomically pushes `main` with the matching `vX.Y.Z` tag. The tag creates a draft, prerelease Windows build and SHA-256 checksums. Before a public production release:
 
 1. Configure and protect a Windows code-signing certificate and timestamp service.
 2. Verify Authenticode signatures in CI.
