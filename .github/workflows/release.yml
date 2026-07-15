@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   validate:
-    runs-on: windows-latest
+    runs-on: blacksmith-4vcpu-windows-2025
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -36,7 +36,7 @@ jobs:
 
   release:
     needs: validate
-    runs-on: windows-latest
+    runs-on: blacksmith-4vcpu-windows-2025
     permissions:
       contents: write
     steps:
