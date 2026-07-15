@@ -1,14 +1,17 @@
 <script setup>
-defineProps({
+const props = defineProps({
   title: {
     type: String,
     default: '',
   },
+  min: { type: Number, default: 1 },
+  max: { type: Number, default: 100 },
+  step: { type: Number, default: 1 },
 });
 
 const model = defineModel({
-  type: String,
-  default: '0',
+  type: Number,
+  default: 80,
 });
 </script>
 
@@ -24,7 +27,15 @@ const model = defineModel({
       </div>
     </div>
 
-    <input v-model="model" type="range" class="ui-range__input" />
+    <input
+      v-model.number="model"
+      type="range"
+      class="ui-range__input"
+      :min="props.min"
+      :max="props.max"
+      :step="props.step"
+      :aria-label="title"
+    />
 
     <div class="ui-range__content">
       <div class="ui-range__boundary">

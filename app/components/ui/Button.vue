@@ -8,6 +8,10 @@ defineProps({
     type: String,
     default: '',
   },
+  ariaLabel: {
+    type: String,
+    default: '',
+  },
   iconPos: {
     type: String,
     default: 'left',
@@ -28,6 +32,8 @@ defineProps({
 
 <template>
   <button
+    type="button"
+    :aria-label="ariaLabel || title || icon || undefined"
     class="ui-button"
     :class="{
       [`ui-button--theme--${theme}`]: !!theme,
@@ -38,6 +44,7 @@ defineProps({
       v-if="icon && iconPos === 'left'"
       class="ui-button__icon"
       :name="icon"
+      aria-hidden="true"
     />
 
     <slot>
@@ -50,6 +57,7 @@ defineProps({
       v-if="icon && iconPos === 'right'"
       class="ui-button__icon"
       :name="icon"
+      aria-hidden="true"
     />
   </button>
 </template>

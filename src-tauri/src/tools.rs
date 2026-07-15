@@ -26,13 +26,17 @@ pub fn get_png_tools() -> Result<(Option<TempDir>, ToolPath, ToolPath), std::io:
     #[cfg(target_os = "windows")]
     {
         let dir = tempfile::tempdir()?;
-        let pq_path = dir.path().join("pngquant.exe");
+        let pngquant_path = dir.path().join("pngquant.exe");
         let oxi_path = dir.path().join("oxipng.exe");
-        let mut f1 = fs::File::create(&pq_path)?;
-        f1.write_all(PNGQUANT_BIN)?;
-        let mut f2 = fs::File::create(&oxi_path)?;
-        f2.write_all(OXIPNG_BIN)?;
-        Ok((Some(dir), ToolPath::Path(pq_path), ToolPath::Path(oxi_path)))
+        let mut file = fs::File::create(&pngquant_path)?;
+        file.write_all(PNGQUANT_BIN)?;
+        let mut file = fs::File::create(&oxi_path)?;
+        file.write_all(OXIPNG_BIN)?;
+        Ok((
+            Some(dir),
+            ToolPath::Path(pngquant_path),
+            ToolPath::Path(oxi_path),
+        ))
     }
 
     #[cfg(not(target_os = "windows"))]

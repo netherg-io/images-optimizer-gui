@@ -5,8 +5,15 @@ const filesStore = useFilesStore();
 const { totalItems } = storeToRefs(filesStore);
 
 const optStore = useOptimizationStore();
-const { quality, optimization, path, saveMethod, savePath, isProcessing } =
-  storeToRefs(optStore);
+const {
+  quality,
+  optimization,
+  path,
+  saveMethod,
+  existingFilePolicy,
+  savePath,
+  canStart,
+} = storeToRefs(optStore);
 
 function handleStart() {
   optStore.startOptimization();
@@ -52,7 +59,7 @@ function handleStart() {
         <UiButton
           :title="`${$t('sections.options.button')} ${$t('common.plurals.images', { count: totalItems })}`"
           theme="accent"
-          :disabled="isProcessing"
+          :disabled="!canStart"
           @click="handleStart"
         />
 
@@ -110,6 +117,41 @@ function handleStart() {
               value: 'overwrite',
               title: $t('sections.options.radio.0.options.1.title'),
               description: $t('sections.options.radio.0.options.1.description'),
+            },
+          ]"
+        />
+
+        <UiRadio
+          v-model="existingFilePolicy"
+          :title="$t('sections.options.existing-policy.title')"
+          :options="[
+            {
+              value: 'rename',
+              title: $t('sections.options.existing-policy.rename.title'),
+              description: $t(
+                'sections.options.existing-policy.rename.description',
+              ),
+            },
+            {
+              value: 'skip',
+              title: $t('sections.options.existing-policy.skip.title'),
+              description: $t(
+                'sections.options.existing-policy.skip.description',
+              ),
+            },
+            {
+              value: 'error',
+              title: $t('sections.options.existing-policy.error.title'),
+              description: $t(
+                'sections.options.existing-policy.error.description',
+              ),
+            },
+            {
+              value: 'overwrite',
+              title: $t('sections.options.existing-policy.overwrite.title'),
+              description: $t(
+                'sections.options.existing-policy.overwrite.description',
+              ),
             },
           ]"
         />

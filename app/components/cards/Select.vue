@@ -20,7 +20,12 @@ defineProps({
 </script>
 
 <template>
-  <div class="select-card" :class="{ ['select-card--active']: isActive }">
+  <button
+    type="button"
+    class="select-card"
+    :aria-pressed="isActive"
+    :class="{ ['select-card--active']: isActive }"
+  >
     <div class="select-card__icon-wrapper">
       <CIcon class="select-card__icon" :name="icon" />
     </div>
@@ -34,7 +39,7 @@ defineProps({
         <p class="s1-r">{{ description }}</p>
       </div>
     </div>
-  </div>
+  </button>
 </template>
 
 <style lang="scss" scoped>

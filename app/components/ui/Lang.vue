@@ -32,6 +32,8 @@ const activeIndex = computed(() => {
       type="button"
       class="ui-lang-switch__option"
       :class="{ 'ui-lang-switch__option--active': locale === item.code }"
+      :aria-label="item.code === 'en' ? 'English' : 'Українська'"
+      :aria-pressed="locale === item.code"
       @click="switchLocale(item.code)"
     >
       <span class="s2-r">{{ item.label }}</span>

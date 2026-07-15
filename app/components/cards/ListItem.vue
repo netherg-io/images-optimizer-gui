@@ -49,11 +49,20 @@ const toggleFolder = () => {
       @click="toggleFolder"
     >
       <template v-if="item.type === 'folder'">
-        <CIcon
-          name="chevron"
-          class="ui-list-item__arrow"
-          :class="{ 'ui-list-item__arrow--open': isOpen }"
-        />
+        <button
+          type="button"
+          class="ui-list-item__toggle"
+          :aria-label="$t('common.toggle-folder')"
+          :aria-expanded="isOpen"
+          @click.stop="toggleFolder"
+        >
+          <CIcon
+            name="chevron"
+            class="ui-list-item__arrow"
+            :class="{ 'ui-list-item__arrow--open': isOpen }"
+            aria-hidden="true"
+          />
+        </button>
 
         <div class="ui-list-item__folder-wrapper">
           <CIcon name="folder" class="ui-list-item__folder" />
@@ -97,6 +106,7 @@ const toggleFolder = () => {
         icon="trash"
         size="xs"
         theme="warn"
+        :aria-label="$t('common.remove')"
         @click.stop="emit('remove', item.id)"
       />
     </div>
@@ -159,6 +169,11 @@ const toggleFolder = () => {
     &--open {
       rotate: 180deg;
     }
+  }
+
+  &__toggle {
+    flex-shrink: 0;
+    padding: em(8);
   }
 
   &__folder-wrapper {

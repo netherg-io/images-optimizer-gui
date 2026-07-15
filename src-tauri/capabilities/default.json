@@ -1,48 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions",
-  "windows": [
-    "main"
-  ],
+  "description": "Minimum permissions for the local Windows optimizer UI",
+  "windows": ["main"],
   "permissions": [
-    "core:default",
+    "core:event:default",
+    "core:path:default",
     "core:window:allow-show",
     "core:window:allow-set-focus",
-    "fs:default",
-    "dialog:default",
-    {
-      "identifier": "opener:allow-open-path",
-      "allow": [
-        {
-          "path": "**"
-        }
-      ]
-    },
-    {
-      "identifier": "fs:allow-stat",
-      "allow": [
-        {
-          "path": "**"
-        }
-      ]
-    },
-    {
-      "identifier": "fs:allow-read-dir",
-      "allow": [
-        {
-          "path": "**"
-        }
-      ]
-    },
-    {
-      "identifier": "fs:allow-read-file",
-      "allow": [
-        {
-          "path": "**"
-        }
-      ]
-    },
-    "opener:default"
+    "dialog:allow-open"
   ]
 }

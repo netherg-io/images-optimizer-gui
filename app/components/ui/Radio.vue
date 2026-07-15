@@ -44,7 +44,12 @@ watch(
   <div class="ui-radio">
     <div v-if="title" class="ui-radio__title">{{ title }}</div>
 
-    <div v-if="options?.length" class="ui-radio__content">
+    <div
+      v-if="options?.length"
+      class="ui-radio__content"
+      role="radiogroup"
+      :aria-label="title"
+    >
       <CardRadio
         v-for="(option, index) in options"
         :key="index"

@@ -1,6 +1,10 @@
 {
   "common": {
     "clear-all": "Clear All",
+    "remove": "Remove",
+    "open-image": "Open original image",
+    "toggle-folder": "Expand or collapse folder",
+    "toggle-theme": "Toggle color theme",
     "plurals": {
       "files": "{count} file | {count} files",
       "images": "{count} image | {count} images"
@@ -13,12 +17,11 @@
     "add-files": {
       "input": {
         "title": "Drop your images here",
-        "description": "or use the buttons below to add files"
+        "description": "or use the buttons below to add files",
+        "scanning-title": "Folder accepted",
+        "scanning-description": "Images found: {count}"
       },
-      "buttons": [
-        "Add Files",
-        "Add Folder"
-      ]
+      "buttons": ["Add Files", "Add Folder"]
     },
     "files-list": {
       "title": "Images",
@@ -31,7 +34,7 @@
           "options": [
             {
               "title": "Compress",
-              "description": "Reduce the file size without losing quality"
+              "description": "JPEG and PNG use lossy compression; output metadata is removed"
             },
             {
               "title": "Convert to WebP",
@@ -63,7 +66,7 @@
       ],
       "range": [
         {
-          "title": "Quality",
+          "title": "Lossy quality (JPEG, PNG, WebP, AVIF)",
           "min": "Lower Size",
           "max": "Higher Quality"
         }
@@ -84,6 +87,29 @@
         }
       ],
       "button": "Optimize",
+      "existing-policy": {
+        "title": "If an output already exists",
+        "rename": {
+          "title": "Create a unique name",
+          "description": "Keep the existing file and add a numeric suffix"
+        },
+        "skip": {
+          "title": "Skip it",
+          "description": "Leave the existing file unchanged and report the skip"
+        },
+        "error": {
+          "title": "Stop before processing",
+          "description": "Report the conflict without writing any output"
+        },
+        "overwrite": {
+          "title": "Overwrite existing output",
+          "description": "Replace only after validation and explicit confirmation"
+        }
+      },
+      "overwrite-confirm": {
+        "title": "Confirm overwrite",
+        "message": "Existing files may be replaced. Originals are preserved until the new file is validated. Continue?"
+      },
       "folder-picker": {
         "title": "Destination Folder",
         "placeholder": "No folder selected",
@@ -92,20 +118,18 @@
     }
   },
   "modals": {
-    "status":{
+    "status": {
       "title": {
         "done": "Done!",
+        "partial": "Completed with errors",
         "canceled": "Canceled",
+        "canceling": "Canceling...",
         "error": "Error",
         "optimizing": "Optimizing..."
       },
-      "stats": [
-        "Files",
-        "Total Time",
-        "Saved"
-      ],
+      "stats": ["Files", "Total Time", "Saved"],
       "table": {
-        "head": ["Format", "Size"],
+        "head": ["Format", "Output size", "Saved"],
         "label": {
           "original": "Original",
           "optimized": "Optimized",
@@ -117,9 +141,12 @@
         "title": "Processing Time",
         "compress": "Compressing:"
       },
+      "failures": "Failed operations: {count}",
       "button": {
         "cancel": "Cancel",
-        "close": "Close"
+        "close": "Close",
+        "copy-diagnostics": "Copy diagnostics",
+        "open-folder": "Open output folder"
       }
     }
   }

@@ -1,138 +1,126 @@
 <script setup>
+import { invoke } from '@tauri-apps/api/core';
 import { VueFinalModal } from 'vue-final-modal';
 import { useOptimizationStore } from '@/stores/optimization';
-import { formatSize, formatTime } from '@/utils/helpers';
+import { formatSize, formatTime, getParentPath } from '@/utils/helpers';
 
 const props = defineProps({
-  total: {
-    type: Number,
-    default: 0,
-  },
-  done: {
-    type: Number,
-    default: 0,
-  },
-  currentFile: {
-    type: String,
-    default: '',
-  },
-  result: {
-    type: Object,
-    default: null,
-  },
-  error: {
-    type: [String, Object],
-    default: null,
-  },
+  total: { type: Number, default: 0 },
+  done: { type: Number, default: 0 },
+  currentFile: { type: String, default: '' },
+  result: { type: Object, default: null },
+  error: { type: [String, Object], default: null },
 });
-
-const { t } = useI18n();
 
 const emit = defineEmits(['confirm', 'cancel', 'update:modelValue']);
 const optStore = useOptimizationStore();
+const { t } = useI18n();
 
-const percentage = computed(() => {
-  if (!props.total || props.total === 0) return 0;
-  return Math.round((props.done / props.total) * 100);
-});
-
+const percentage = computed(() =>
+  props.total > 0
+    ? Math.max(0, Math.min(100, Math.round((props.done / props.total) * 100)))
+    : 0,
+);
 const isFinished = computed(() => !!props.result);
-const hasError = computed(() => !!props.error);
-
-const isCanceled = computed(() => props.result && props.result.is_canceled);
+const isCanceled = computed(() => !!props.result?.is_canceled);
+const isPartial = computed(() => (props.result?.failed_files || 0) > 0);
+const normalizedError = computed(() =>
+  typeof props.error === 'string'
+    ? props.error
+    : props.error?.message || String(props.error || ''),
+);
+const failures = computed(
+  () =>
+    props.result?.operations?.filter(({ status }) => status === 'failed') || [],
+);
+const successfulOperations = computed(
+  () =>
+    props.result?.operations?.filter(
+      ({ status, output_size: outputSize }) =>
+        status === 'succeeded' && Number.isFinite(outputSize),
+    ) || [],
+);
+const destinationRoot = computed(
+  () =>
+    props.result?.destination_root ||
+    getParentPath(
+      successfulOperations.value.find((operation) => operation.destination)
+        ?.destination,
+    ),
+);
 
 const savingsPercent = computed(() => {
-  if (!props.result || props.result.total_size_original === 0) return 0;
-  const saved = Math.min(
-    props.result.total_size_optimized || props.result.total_size_original,
-    props.result.total_size_avif || props.result.total_size_original,
-    props.result.total_size_webp || props.result.total_size_original,
+  const original = successfulOperations.value.reduce(
+    (sum, operation) => sum + operation.original_size,
+    0,
   );
-
-  console.log(
-    props.result.total_size_optimized || props.result.total_size_original,
-    props.result.total_size_avif || props.result.total_size_original,
-    props.result.total_size_webp || props.result.total_size_original,
+  const output = successfulOperations.value.reduce(
+    (sum, operation) => sum + operation.output_size,
+    0,
   );
-
-  return 100 - ((saved / props.result.total_size_original) * 100).toFixed(1);
+  if (!original) return 0;
+  return Math.max(
+    0,
+    Math.min(100, ((original - output) / original) * 100),
+  ).toFixed(1);
 });
 
-const filesDisplay = computed(() => {
-  if (!props.result) return '';
-  if (isCanceled.value) {
-    return `${props.result.processed_files} / ${props.result.total_files}`;
+const formatRows = computed(() => {
+  const labels = {
+    optimize_original: t('modals.status.table.label.optimized'),
+    webp: t('modals.status.table.label.webp'),
+    avif: t('modals.status.table.label.avif'),
+  };
+  return Object.entries(labels).flatMap(([operation, label]) => {
+    const results = successfulOperations.value.filter(
+      (result) => result.operation === operation,
+    );
+    if (!results.length) return [];
+    const original = results.reduce(
+      (sum, result) => sum + result.original_size,
+      0,
+    );
+    const output = results.reduce((sum, result) => sum + result.output_size, 0);
+    const saved = Math.max(
+      0,
+      Math.min(100, ((original - output) / original) * 100),
+    );
+    return [{ operation, label, output, saved: saved.toFixed(1) }];
+  });
+});
+
+const title = computed(() => {
+  if (props.error) return t('modals.status.title.error');
+  if (isCanceled.value) return t('modals.status.title.canceled');
+  if (isPartial.value) return t('modals.status.title.partial');
+  if (isFinished.value) return t('modals.status.title.done');
+  if (optStore.isCancelRequested) return t('modals.status.title.canceling');
+  return t('modals.status.title.optimizing');
+});
+
+async function openDestination() {
+  if (destinationRoot.value) {
+    await invoke('open_local_path', { path: destinationRoot.value });
   }
-  return props.result.total_files;
-});
-
-function handleCancel() {
-  optStore.cancelOptimization();
 }
 
-const header = computed(() => [
-  {
-    title: t('modals.status.title.done'),
-    modifier: 'success',
-    condition: isFinished.value && !hasError.value && !isCanceled.value,
-  },
-  {
-    title: t('modals.status.title.canceled'),
-    modifier: 'canceled',
-    condition: isCanceled.value,
-  },
-  {
-    title: t('modals.status.title.error'),
-    modifier: 'error',
-    condition: hasError.value,
-  },
-  {
-    title: t('modals.status.title.optimizing'),
-    condition: !isFinished.value && !hasError.value && !isCanceled.value,
-  },
-]);
-
-const table = computed(() => [
-  {
-    label: t('modals.status.table.label.original'),
-    rawValue: props.result.total_size_original,
-    value: formatSize(props.result.total_size_original),
-    condition: true,
-  },
-  {
-    label: t('modals.status.table.label.optimized'),
-    rawValue: props.result.total_size_optimized,
-    value: formatSize(props.result.total_size_optimized),
-    condition: props.result.total_size_optimized > 0,
-  },
-  {
-    label: t('modals.status.table.label.webp'),
-    rawValue: props.result.total_size_webp,
-    value: formatSize(props.result.total_size_webp),
-    condition: props.result.total_size_webp > 0,
-  },
-  {
-    label: t('modals.status.table.label.avif'),
-    rawValue: props.result.total_size_avif,
-    value: formatSize(props.result.total_size_avif),
-    condition: props.result.total_size_avif > 0,
-  },
-]);
-
-const tags = computed(() => [
-  {
-    value: `${t('modals.status.tags.compress')} ${formatTime(props.result.duration_opt)}`,
-    condition: props.result.duration_opt > 0,
-  },
-  {
-    value: `WebP: ${formatTime(props.result.duration_webp)}`,
-    condition: props.result.duration_webp > 0,
-  },
-  {
-    value: `AVIF: ${formatTime(props.result.duration_avif)}`,
-    condition: props.result.duration_avif > 0,
-  },
-]);
+async function copyDiagnostics() {
+  const diagnostics = {
+    operationId: props.result?.operation_id,
+    totalFiles: props.result?.total_files,
+    succeeded: props.result?.succeeded_files,
+    failed: props.result?.failed_files,
+    skipped: props.result?.skipped_files,
+    canceled: props.result?.canceled_files,
+    failures: failures.value.map((failure) => ({
+      file: failure.source.split(/[\\/]/).pop(),
+      operation: failure.operation,
+      code: failure.error_code,
+      message: failure.error_message,
+    })),
+  };
+  await navigator.clipboard.writeText(JSON.stringify(diagnostics, null, 2));
+}
 </script>
 
 <template>
@@ -144,162 +132,123 @@ const tags = computed(() => [
     content-transition="vfm-fade"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <div class="status-modal__header">
-      <template v-for="({ title, condition, modifier }, index) in header">
-        <h3
-          v-if="condition"
-          :key="index"
-          class="status-modal__title"
-          :class="{ [`status-modal__title--${modifier}`]: !!modifier }"
-        >
-          <p class="h1-r">{{ title }}</p>
-        </h3>
-      </template>
+    <h2 class="status-modal__title">{{ title }}</h2>
+
+    <div v-if="error" class="status-modal__state" role="alert">
+      <div
+        class="status-modal__icon status-modal__icon--error"
+        aria-hidden="true"
+      >
+        !
+      </div>
+      <p class="status-modal__message">{{ normalizedError }}</p>
     </div>
 
-    <div class="status-modal__body">
-      <div v-if="hasError" class="status-modal__state">
-        <div class="status-modal__icon status-modal__icon--error">!</div>
+    <div v-else-if="!isFinished" class="status-modal__state">
+      <div
+        class="status-modal__progress-circle"
+        :style="{ '--p': percentage }"
+        role="progressbar"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        :aria-valuenow="percentage"
+      >
+        <span class="status-modal__progress-text">{{ percentage }}%</span>
+      </div>
+      <p class="status-modal__filename">{{ currentFile }}</p>
+      <p>{{ done }} / {{ total }}</p>
+      <UiButton
+        size="sm"
+        :title="$t('modals.status.button.cancel')"
+        theme="warn"
+        :disabled="optStore.isCancelRequested"
+        @click="optStore.cancelOptimization()"
+      />
+    </div>
 
-        <p class="status-modal__error-msg">{{ error }}</p>
+    <div v-else class="status-modal__state">
+      <div
+        class="status-modal__icon"
+        :class="
+          isPartial
+            ? 'status-modal__icon--error'
+            : 'status-modal__icon--success'
+        "
+        aria-hidden="true"
+      >
+        {{ isPartial ? '!' : isCanceled ? '■' : '✓' }}
       </div>
 
-      <div v-else-if="!isFinished" class="status-modal__state">
-        <div
-          class="status-modal__progress-circle"
-          :style="{ '--p': percentage }"
-        >
-          <span class="status-modal__progress-text">{{ percentage }}%</span>
-        </div>
-
-        <div class="status-modal__progress-details">
-          <div class="status-modal__filename">
-            <p class="s2-r">{{ currentFile }}</p>
-          </div>
-
-          <div class="status-modal__counter">
-            <p class="s2-r">{{ done }} / {{ total }}</p>
-          </div>
-        </div>
-
-        <UiButton
-          size="sm"
-          :title="$t('modals.status.button.cancel')"
-          class="status-modal__button"
-          theme="warn"
-          @click="handleCancel"
-        />
-      </div>
-
-      <div v-else class="status-modal__state">
-        <div
-          v-if="!isCanceled"
-          class="status-modal__icon status-modal__icon--success"
-        >
-          <span>✓</span>
-        </div>
-
-        <div v-else class="status-modal__icon status-modal__icon--canceled">
-          <span>■</span>
-        </div>
-
-        <div class="status-modal__grid">
-          <div class="status-modal__stat">
-            <span class="status-modal__stat-label">
-              {{ $t('modals.status.stats.0') }}
-            </span>
-
-            <span class="status-modal__stat-value">{{ filesDisplay }}</span>
-          </div>
-
-          <div class="status-modal__stat">
-            <span class="status-modal__stat-label">
-              {{ $t('modals.status.stats.1') }}
-            </span>
-
-            <span class="status-modal__stat-value">
-              {{ formatTime(result.duration_total) }}
-            </span>
-          </div>
-
-          <div class="status-modal__stat status-modal__stat--highlight">
-            <span class="status-modal__stat-label">
-              {{ $t('modals.status.stats.2') }}
-            </span>
-
-            <span class="status-modal__stat-value">{{ savingsPercent }}%</span>
-          </div>
-        </div>
-
-        <div class="status-modal__table">
-          <div class="status-modal__row status-modal__row--header">
-            <span class="status-modal__cell">
-              {{ $t('modals.status.table.head.0') }}
-            </span>
-
-            <span class="status-modal__cell">
-              {{ $t('modals.status.table.head.1') }}
-            </span>
-          </div>
-
-          <template
-            v-for="({ label, value, rawValue, condition }, index) in table"
+      <div class="status-modal__grid">
+        <div class="status-modal__stat">
+          <span>{{ $t('modals.status.stats.0') }}</span>
+          <strong
+            >{{ result.succeeded_files }} / {{ result.total_files }}</strong
           >
-            <div
-              v-if="condition"
-              :key="index"
-              class="status-modal__row"
-              :class="{
-                ['status-modal__row--highlight']:
-                  rawValue ===
-                  Math.min(
-                    ...table.map(({ rawValue }) => rawValue || Infinity),
-                  ),
-              }"
-            >
-              <span class="status-modal__cell status-modal__cell--label">
-                {{ label }}
-              </span>
-
-              <span class="status-modal__cell">{{ value }}</span>
-            </div>
-          </template>
         </div>
-
-        <div
-          v-if="tags.filter(({ condition }) => condition).length > 1"
-          class="status-modal__time-block"
-        >
-          <div class="status-modal__time-subtitle">
-            <p class="s1-r">{{ $t('modals.status.tags.title') }}</p>
-          </div>
-
-          <div class="status-modal__tags">
-            <div
-              v-for="({ value }, index) in tags.filter(
-                ({ condition }) => condition,
-              )"
-              :key="index"
-              class="status-modal__tag"
-            >
-              <p class="s2-r">{{ value }}</p>
-            </div>
-          </div>
+        <div class="status-modal__stat">
+          <span>{{ $t('modals.status.stats.1') }}</span>
+          <strong>{{ formatTime(result.duration_total) }}</strong>
+        </div>
+        <div class="status-modal__stat status-modal__stat--highlight">
+          <span>{{ $t('modals.status.stats.2') }}</span>
+          <strong>{{ savingsPercent }}%</strong>
         </div>
       </div>
-    </div>
 
-    <AFade>
-      <div v-if="!optStore.isProcessing" class="status-modal__footer">
+      <table v-if="formatRows.length" class="status-modal__table">
+        <thead>
+          <tr>
+            <th>{{ $t('modals.status.table.head.0') }}</th>
+            <th>{{ $t('modals.status.table.head.1') }}</th>
+            <th>{{ $t('modals.status.table.head.2') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in formatRows" :key="row.operation">
+            <th scope="row">{{ row.label }}</th>
+            <td>{{ formatSize(row.output) }}</td>
+            <td>{{ row.saved }}%</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <details
+        v-if="failures.length"
+        class="status-modal__failures"
+        role="alert"
+      >
+        <summary>
+          {{ $t('modals.status.failures', { count: failures.length }) }}
+        </summary>
+        <ul>
+          <li
+            v-for="failure in failures"
+            :key="`${failure.source}-${failure.operation}`"
+          >
+            <strong>{{ failure.source.split(/[\\/]/).pop() }}</strong>
+            — {{ failure.error_message }}
+          </li>
+        </ul>
+      </details>
+
+      <div class="status-modal__actions">
+        <UiButton
+          :title="$t('modals.status.button.copy-diagnostics')"
+          @click="copyDiagnostics"
+        />
+        <UiButton
+          v-if="destinationRoot"
+          :title="$t('modals.status.button.open-folder')"
+          @click="openDestination"
+        />
         <UiButton
           :title="$t('modals.status.button.close')"
           theme="accent"
-          class="status-modal__button"
-          :disabled="optStore.isProcessing"
           @click="emit('confirm')"
         />
       </div>
-    </AFade>
+    </div>
   </VueFinalModal>
 </template>
 
@@ -316,86 +265,43 @@ const tags = computed(() => [
   justify-content: center;
 
   &__icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: em(56, 20);
-    height: em(56, 20);
-    margin-bottom: em(16, 20);
-    font-size: em(20);
+    display: grid;
+    place-items: center;
+    width: em(56);
+    height: em(56);
     border-radius: 50%;
 
     &--success {
       color: $accent-color-success;
-      background-color: rgb(76 175 80 / 10%);
+      background: rgb(76 175 80 / 10%);
       border: 1px solid $accent-color-success;
     }
 
     &--error {
       color: $text-color-warn;
-      background-color: rgb(244 67 54 / 10%);
+      background: rgb(244 67 54 / 10%);
       border: 1px solid $text-color-warn;
-    }
-
-    &--canceled {
-      width: em(56, 24);
-      height: em(56, 24);
-      margin-bottom: em(16, 24);
-      font-size: em(24);
-      color: $accent-color-warn;
-      background-color: rgb(255 152 0 / 10%);
-      border: 1px solid $accent-color-warn;
-
-      & > span {
-        translate: 0 -10%;
-      }
     }
   }
 
   &__content {
-    position: relative;
     display: flex;
     flex-direction: column;
-    width: 90%;
-    max-width: em(350);
+    gap: em(20);
+    width: min(90%, em(520));
     max-height: 90vh;
     padding: em(24);
-    background-color: $background-color-primary;
+    overflow-y: auto;
+    color: $text-color-primary;
+    background: $background-color-primary;
+    border: 1px solid $border-color-secondary;
     border-radius: em(10);
     box-shadow: 0 em(10) em(40) rgb(0 0 0 / 20%);
   }
 
-  &__header {
-    margin-bottom: em(8);
-    text-align: center;
-  }
-
   &__title {
     margin: 0;
-
-    &--success {
-      color: $accent-color-success;
-    }
-
-    &--error {
-      color: $text-color-warn;
-    }
-
-    &--canceled {
-      color: $accent-color-warn;
-    }
-  }
-
-  &__body {
-    display: flex;
-    flex-grow: 1;
-    flex-direction: column;
-    align-items: center;
-    overflow-y: auto;
-  }
-
-  &__button {
-    min-width: em(200);
+    text-align: center;
   }
 
   &__state {
@@ -404,6 +310,50 @@ const tags = computed(() => [
     gap: em(16);
     align-items: center;
     width: 100%;
+  }
+
+  &__message,
+  &__failures {
+    width: 100%;
+    padding: em(12);
+    background: $background-color-secondary;
+    border-radius: em(8);
+  }
+
+  &__progress-circle {
+    --percentage: calc(var(--p) * 1%);
+
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: em(80);
+    height: em(80);
+    background: conic-gradient(
+      $accent-color-secondary var(--percentage),
+      $background-color-tertiary 0
+    );
+    border-radius: 50%;
+    transition: --percentage $time-fast $ease;
+
+    &::before {
+      position: absolute;
+      inset: em(8);
+      content: '';
+      background: $background-color-primary;
+      border-radius: 50%;
+    }
+  }
+
+  &__progress-text {
+    position: relative;
+    color: $accent-color-secondary;
+  }
+
+  &__filename {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &__grid {
@@ -416,143 +366,46 @@ const tags = computed(() => [
   &__stat {
     display: flex;
     flex-direction: column;
+    gap: em(4);
     align-items: center;
     padding: em(10) em(4);
-    background-color: $background-color-secondary;
+    text-align: center;
+    background: $background-color-secondary;
     border-radius: em(8);
 
     &--highlight {
       color: $accent-color-success;
     }
-  }
-
-  &__stat-label {
-    margin-bottom: em(4);
-    font-size: 0.75em;
-    color: $text-color-secondary;
-  }
-
-  &__stat-value {
-    font-weight: 700;
   }
 
   &__table {
     width: 100%;
-    margin-bottom: 16px;
     overflow: hidden;
-    border: 1px solid #eeeeee;
-    border-radius: 8px;
-  }
+    border-collapse: collapse;
+    border: 1px solid $border-color-secondary;
 
-  &__row {
-    display: flex;
-    justify-content: space-between;
-    padding: em(8) em(12);
-    font-size: 0.9em;
-    border-bottom: 1px solid #eeeeee;
-
-    &:last-child {
-      border-bottom: none;
-    }
-
-    &--header {
-      font-size: 0.8em;
-      color: $text-color-secondary;
-      text-transform: uppercase;
-      background-color: #fafafa;
-    }
-
-    &--highlight {
-      color: $accent-color-success;
+    th,
+    td {
+      padding: em(8) em(12);
+      text-align: left;
+      border-bottom: 1px solid $border-color-secondary;
     }
   }
 
-  &__time-block {
-    width: 100%;
-    text-align: center;
+  &__failures {
+    max-height: em(180);
+    overflow: auto;
+
+    ul {
+      padding-left: em(20);
+    }
   }
 
-  &__time-subtitle {
-    margin-bottom: em(6);
-    color: $text-color-secondary;
-    text-transform: uppercase;
-  }
-
-  &__tags {
+  &__actions {
     display: flex;
     flex-wrap: wrap;
     gap: em(8);
     justify-content: center;
-  }
-
-  &__tag {
-    padding: em(4) em(8);
-    font-size: 0.9em;
-    background: $background-color-additional;
-    border-radius: em(4);
-  }
-
-  &__error-msg {
-    width: 100%;
-    padding: em(12);
-    color: $text-color-warn;
-    text-align: center;
-    background: $background-color-secondary;
-    border-radius: em(8);
-  }
-
-  &__progress-circle {
-    --percentage: calc(var(--p) * 1%);
-
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: em(80);
-    height: em(80);
-    background: conic-gradient(
-      $accent-color-secondary var(--percentage),
-      #eeeeee 0
-    );
-    border-radius: 50%;
-    transition: --percentage $time-fast $ease;
-
-    &::before {
-      position: absolute;
-      inset: em(8);
-      content: '';
-      background: $color-white;
-      border-radius: 50%;
-    }
-  }
-
-  &__progress-text {
-    position: relative;
-    font-size: 1.1rem;
-    font-weight: bold;
-    color: $accent-color-secondary;
-  }
-
-  &__progress-details {
-    width: em(300);
-    text-align: center;
-  }
-
-  &__filename {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &__counter {
-    margin: 0;
-  }
-
-  &__footer {
-    display: flex;
-    justify-content: center;
-    margin-top: em(24);
   }
 }
 </style>

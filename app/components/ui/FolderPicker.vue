@@ -80,7 +80,7 @@ $c-track: #e2e8f0;
     border: 1px solid $border-color-accent;
     border-radius: em(10);
     transition: $time-normal $ease;
-    transition-property: border-color background-color;
+    transition-property: border-color, background-color;
 
     &::placeholder {
       color: $text-color-placeholder;

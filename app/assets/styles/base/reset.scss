@@ -146,14 +146,26 @@ table {
   min-width: 0;
   min-height: 0;
 
-  &:focus {
-    outline: none;
-  }
-
   &,
   &::before,
   &::after {
     box-sizing: border-box;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid oklch(60% 0.2 265deg);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -173,10 +185,10 @@ textarea {
   color: inherit;
   appearance: textfield;
   appearance: none;
+  outline: none;
   background: none;
   border: none;
   border-radius: 0;
-  outline: none;
   box-shadow: none;
 
   &::-webkit-outer-spin-button,
@@ -217,10 +229,10 @@ button {
   color: inherit;
   text-align: inherit;
   cursor: pointer;
+  outline: none;
   background: none;
   border: none;
   border-radius: 0;
-  outline: none;
   box-shadow: none;
 
   &:disabled {

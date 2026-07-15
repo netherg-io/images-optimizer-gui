@@ -1,15 +1,15 @@
-use std::fs;
-use std::path::Path;
-use rayon::prelude::*;
 use base64::{engine::general_purpose, Engine as _};
 use image::ImageFormat;
+use std::fs;
 use std::io::Cursor;
+use std::path::Path;
 use std::sync::atomic::Ordering;
 use tauri::{command, Emitter, State, Window};
+use tauri_plugin_opener::OpenerExt;
 
 use crate::image_ops::ImageCache;
 use crate::optimizer::perform_optimization;
-use crate::types::{AppState, FinalResult, OptimizeConfig, FileNode};
+use crate::types::{AppState, FileNode, FinalResult, OptimizeConfig};
 
 #[command]
 pub fn get_last_result(state: State<'_, AppState>) -> Option<FinalResult> {
@@ -44,11 +44,22 @@ pub async fn generate_thumbnail(
     path: String,
     state: State<'_, ImageCache>,
 ) -> Result<String, String> {
-    if let Some(cached_b64) = state.0.get(&path).await {
+    let canonical = Path::new(&path)
+        .canonicalize()
+        .map_err(|error| error.to_string())?;
+    let metadata = fs::metadata(&canonical).map_err(|error| error.to_string())?;
+    let modified = metadata
+        .modified()
+        .ok()
+        .and_then(|value| value.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|value| value.as_nanos())
+        .unwrap_or_default();
+    let cache_key = format!("{}:{}:{modified}", canonical.display(), metadata.len());
+    if let Some(cached_b64) = state.0.get(&cache_key).await {
         return Ok(cached_b64);
     }
 
-    let path_clone = path.clone();
+    let path_clone = canonical.clone();
     let result = tokio::task::spawn_blocking(move || {
         let img = image::open(&path_clone).map_err(|e| e.to_string())?;
         let thumbnail = img.thumbnail(128, 128);
@@ -62,8 +73,19 @@ pub async fn generate_thumbnail(
     .await
     .map_err(|e| e.to_string())??;
 
-    state.0.insert(path, result.clone()).await;
+    state.0.insert(cache_key, result.clone()).await;
     Ok(result)
+}
+
+#[command]
+pub fn open_local_path(window: Window, path: String) -> Result<(), String> {
+    let canonical = Path::new(&path)
+        .canonicalize()
+        .map_err(|error| error.to_string())?;
+    window
+        .opener()
+        .open_path(canonical.to_string_lossy(), None::<String>)
+        .map_err(|error| error.to_string())
 }
 
 #[command]
@@ -102,23 +124,18 @@ pub async fn run_optimization(
     .await;
 
     let final_output = match task_result {
-        Ok(Ok(res)) => {
-            let mut last_res = state
-                .last_result
-                .lock()
-                .map_err(|_| "Failed to lock state")?;
-            *last_res = Some(res.clone());
-            Ok(res)
-        }
+        Ok(Ok(res)) => match state.last_result.lock() {
+            Ok(mut last_result) => {
+                *last_result = Some(res.clone());
+                Ok(res)
+            }
+            Err(_) => Err("Failed to store optimization result.".to_string()),
+        },
         Ok(Err(e)) => Err(e),
         Err(_) => Err("Task panicked or failed internally.".to_string()),
     };
 
-    {
-        let mut processing = state
-            .is_processing
-            .lock()
-            .map_err(|_| "Failed to lock state")?;
+    if let Ok(mut processing) = state.is_processing.lock() {
         *processing = false;
     }
 
@@ -126,7 +143,6 @@ pub async fn run_optimization(
 
     final_output
 }
-
 
 fn is_image(path: &Path) -> bool {
     if let Some(ext) = path.extension() {
@@ -136,73 +152,123 @@ fn is_image(path: &Path) -> bool {
     false
 }
 
-fn scan_dir_parallel(path: &Path) -> Option<FileNode> {
-    let Ok(entries) = fs::read_dir(path) else { return None };
-
-    let entries: Vec<_> = entries.filter_map(|e| e.ok()).collect();
-
-    let children: Vec<FileNode> = entries.par_iter()
-        .filter_map(|entry| {
-            let path = entry.path();
-            if path.is_dir() {
-                scan_dir_parallel(&path)
-            } else if is_image(&path) {
-                let size = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
-                Some(FileNode {
-                    path: path.to_string_lossy().to_string(),
-                    name: path.file_name().unwrap_or_default().to_string_lossy().to_string(),
-                    is_dir: false,
-                    children: None,
-                    size,
-                    file_count: 1,
-                })
-            } else {
-                None
+fn scan_dir(path: &Path, on_image: &mut impl FnMut()) -> Result<Option<FileNode>, String> {
+    let mut children = Vec::new();
+    for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let file_type = entry.file_type().map_err(|error| error.to_string())?;
+        if file_type.is_symlink() {
+            continue;
+        }
+        let child_path = entry.path();
+        if file_type.is_dir() {
+            if let Some(child) = scan_dir(&child_path, on_image)? {
+                children.push(child);
             }
-        })
-        .collect();
+        } else if file_type.is_file() && is_image(&child_path) {
+            children.push(file_node(&child_path)?);
+            on_image();
+        }
+    }
 
     if children.is_empty() {
-        return None;
+        return Ok(None);
     }
 
     let total_size: u64 = children.iter().map(|c| c.size).sum();
-    let total_count: usize = children.iter().map(|c| if c.is_dir { c.file_count } else { 1 }).sum();
+    let total_count: usize = children
+        .iter()
+        .map(|c| if c.is_dir { c.file_count } else { 1 })
+        .sum();
 
-    Some(FileNode {
+    Ok(Some(FileNode {
         path: path.to_string_lossy().to_string(),
-        name: path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+        name: path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string(),
+        extension: String::new(),
         is_dir: true,
         children: Some(children),
         size: total_size,
         file_count: total_count,
+    }))
+}
+
+fn file_node(path: &Path) -> Result<FileNode, String> {
+    Ok(FileNode {
+        path: path.to_string_lossy().to_string(),
+        name: path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string(),
+        extension: path
+            .extension()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_lowercase(),
+        is_dir: false,
+        children: None,
+        size: fs::metadata(path).map_err(|error| error.to_string())?.len(),
+        file_count: 1,
     })
 }
 
 #[command]
-pub async fn scan_dropped_paths(paths: Vec<String>) -> Result<Vec<FileNode>, String> {
+pub async fn scan_dropped_paths(
+    window: Window,
+    paths: Vec<String>,
+) -> Result<Vec<FileNode>, String> {
     let result = tauri::async_runtime::spawn_blocking(move || {
-        paths.par_iter()
-            .filter_map(|p| {
-                let path = Path::new(p);
-                if path.is_dir() {
-                    scan_dir_parallel(path)
-                } else if is_image(path) {
-                    let size = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-                     Some(FileNode {
-                        path: path.to_string_lossy().to_string(),
-                        name: path.file_name().unwrap_or_default().to_string_lossy().to_string(),
-                        is_dir: false,
-                        children: None,
-                        size,
-                        file_count: 1,
-                    })
-                } else {
-                    None
+        let mut nodes = Vec::new();
+        let mut found = 0_u64;
+        {
+            let mut report = || {
+                found += 1;
+                if found == 1 || found.is_multiple_of(25) {
+                    let _ = window.emit("scan_progress", found);
                 }
-            })
-            .collect::<Vec<FileNode>>()
-    }).await.map_err(|e| e.to_string())?;
+            };
+            for value in paths {
+                let path = Path::new(&value);
+                if path.is_dir() {
+                    if let Some(node) = scan_dir(path, &mut report)? {
+                        nodes.push(node);
+                    }
+                } else if is_image(path) {
+                    nodes.push(file_node(path)?);
+                    report();
+                } else {
+                    return Err(format!("Unsupported or missing path: {value}"));
+                }
+            }
+        }
+        let _ = window.emit("scan_progress", found);
+        Ok::<Vec<FileNode>, String>(nodes)
+    })
+    .await
+    .map_err(|e| e.to_string())?;
 
-    Ok(result)
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scan_reports_each_image() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("one.png"), b"png").unwrap();
+        fs::write(dir.path().join("two.jpg"), b"jpg").unwrap();
+        fs::write(dir.path().join("ignore.txt"), b"text").unwrap();
+        let mut found = 0;
+
+        let node = scan_dir(dir.path(), &mut || found += 1).unwrap().unwrap();
+
+        assert_eq!(found, 2);
+        assert_eq!(node.file_count, 2);
+    }
 }

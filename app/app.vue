@@ -49,6 +49,8 @@ onMounted(async () => {
   }
 });
 
+onUnmounted(() => optStore.disposeListeners());
+
 watch(
   () => optStore.isProcessing,
   (isProcessing) => {
@@ -97,13 +99,13 @@ watch(
 </script>
 
 <template>
-  <CResize id="app" class="app">
+  <div id="app" class="app">
     <NuxtLayout v-slot="{ className }" class="app__layout">
       <div :class="className">
         <NuxtPage class="app__page" :keepalive="false" />
       </div>
     </NuxtLayout>
-  </CResize>
+  </div>
 </template>
 
 <style scoped lang="scss">
@@ -112,6 +114,7 @@ watch(
 
   display: flex;
   flex-direction: column;
+  font-size: 16px;
 
   &:deep(#{$parent}__layout) {
     flex-grow: 1;

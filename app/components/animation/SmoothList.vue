@@ -1,5 +1,7 @@
 <script setup>
 const { $gsap: gsap } = useNuxtApp();
+const reducedMotion = usePreferredReducedMotion();
+const root = ref(null);
 
 const props = defineProps({
   tag: {
@@ -13,6 +15,7 @@ const props = defineProps({
 });
 
 const onBeforeEnter = (el) => {
+  if (reducedMotion.value === 'reduce') return;
   gsap.set(el, {
     autoAlpha: 0,
     height: 0,
@@ -27,6 +30,7 @@ const onBeforeEnter = (el) => {
 };
 
 const onEnter = (el, done) => {
+  if (reducedMotion.value === 'reduce') return done();
   gsap.to(el, {
     autoAlpha: 1,
     height: 'auto',
@@ -34,13 +38,17 @@ const onEnter = (el, done) => {
     marginBottom: '',
     paddingTop: '',
     paddingBottom: '',
-    onComplete: done,
+    onComplete: () => {
+      gsap.set(el, { clearProps: 'all' });
+      done();
+    },
     duration: props.duration,
     ease: 'power1.out',
   });
 };
 
 const onLeave = (el, done) => {
+  if (reducedMotion.value === 'reduce') return done();
   gsap.set(el, {
     overflow: 'hidden',
     z: 0,
@@ -59,10 +67,15 @@ const onLeave = (el, done) => {
     ease: 'power1.in',
   });
 };
+
+onUnmounted(() => {
+  if (root.value) gsap.killTweensOf(root.value.children);
+});
 </script>
 
 <template>
   <TransitionGroup
+    ref="root"
     :tag="props.tag"
     :css="false"
     class="smooth-list"

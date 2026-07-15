@@ -2,11 +2,14 @@ import { joinURL, hasProtocol } from 'ufo';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
 export const formatSize = (bytes) => {
-  if (bytes === 0) return '0 B';
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
   const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  const i = Math.min(
+    sizes.length - 1,
+    Math.floor(Math.log(bytes) / Math.log(k)),
+  );
+  return `${Number((bytes / k ** i).toFixed(2)).toLocaleString()} ${sizes[i]}`;
 };
 
 export function formatTime(seconds) {
@@ -28,7 +31,7 @@ export const resolveUrl = (path) => {
 
   if (!path) return '';
 
-  const isLocalAbsolutePath = /^[a-zA-Z]:[\\/]/.test(path);
+  const isLocalAbsolutePath = /^(?:[a-zA-Z]:[\\/]|\\\\|\/)/.test(path);
 
   if (isLocalAbsolutePath) {
     try {
@@ -43,4 +46,14 @@ export const resolveUrl = (path) => {
     return path;
   }
   return joinURL(baseURL, path);
+};
+
+export const getParentPath = (path) => {
+  if (!path) return '';
+  const clean = path.replace(/[\\/]+$/, '');
+  const index = Math.max(clean.lastIndexOf('\\'), clean.lastIndexOf('/'));
+  if (index < 0) return '';
+  if (index === 0) return clean[0];
+  if (index === 2 && /^[a-zA-Z]:/.test(clean)) return clean.slice(0, 3);
+  return clean.slice(0, index);
 };

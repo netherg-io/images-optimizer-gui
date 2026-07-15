@@ -7,7 +7,13 @@ export default withNuxt(
   stylistic.configs.recommended,
   ...pluginVue.configs['flat/recommended'],
   {
-    ignores: ['public/*'],
+    ignores: [
+      'public/*',
+      'src-tauri/target/**',
+      '.nuxt/**',
+      '.output/**',
+      'dist/**',
+    ],
     plugins: {
       '@stylistic': stylistic,
     },

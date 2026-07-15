@@ -4,22 +4,53 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  isProcessing: {
+    type: Boolean,
+    default: false,
+  },
+  processedCount: {
+    type: Number,
+    default: 0,
+  },
 });
 </script>
 
 <template>
-  <div class="ui-file-input" :class="{ [`ui-file-input--active`]: isActive }">
+  <div
+    class="ui-file-input"
+    :class="{ [`ui-file-input--active`]: isActive || isProcessing }"
+    role="region"
+    :aria-label="$t('sections.add-files.input.title')"
+    :aria-busy="isProcessing"
+    aria-live="polite"
+  >
     <div class="ui-file-input__content">
       <div class="ui-file-input__wrapper">
         <CIcon class="ui-file-input__icon" name="upload" />
       </div>
 
       <div class="ui-file-input__title">
-        <p class="s1-r">{{ $t('sections.add-files.input.title') }}</p>
+        <p class="s1-r">
+          {{
+            $t(
+              isProcessing
+                ? 'sections.add-files.input.scanning-title'
+                : 'sections.add-files.input.title',
+            )
+          }}
+        </p>
       </div>
 
       <div class="ui-file-input__description">
-        <p class="s1-r">{{ $t('sections.add-files.input.description') }}</p>
+        <p class="s1-r">
+          {{
+            isProcessing
+              ? $t('sections.add-files.input.scanning-description', {
+                  count: processedCount,
+                })
+              : $t('sections.add-files.input.description')
+          }}
+        </p>
       </div>
     </div>
   </div>
@@ -55,9 +86,6 @@ defineProps({
     background-color: $background-color-secondary;
     border-radius: 50%;
     transition: background-color $time-normal $ease;
-  }
-
-  &__title {
   }
 
   &__description {

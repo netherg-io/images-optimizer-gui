@@ -105,7 +105,7 @@ export default {
           selector: '&--',
         },
       ],
-      { severity: 'warnings' },
+      { severity: 'warning' },
     ],
     // 'order/properties-order': propertyGroups.map((group) => ({
     //   ...group,

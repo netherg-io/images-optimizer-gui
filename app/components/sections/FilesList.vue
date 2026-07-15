@@ -1,7 +1,5 @@
 <script setup>
 import { formatSize } from '@/utils/helpers';
-import Simplebar from 'simplebar-vue';
-import 'simplebar/dist/simplebar.min.css';
 
 const filesStore = useFilesStore();
 const { items, totalItems, totalSize } = storeToRefs(filesStore);
@@ -38,7 +36,7 @@ const { items, totalItems, totalSize } = storeToRefs(filesStore);
           </div>
         </div>
 
-        <Simplebar class="files-list-block__scroll">
+        <div class="files-list-block__scroll">
           <ASmoothList tag="div" class="files-list-block__content">
             <CardListItem
               v-for="item in items"
@@ -47,7 +45,7 @@ const { items, totalItems, totalSize } = storeToRefs(filesStore);
               @remove="filesStore.removeById"
             />
           </ASmoothList>
-        </Simplebar>
+        </div>
       </div>
     </div>
   </div>
@@ -90,34 +88,7 @@ const { items, totalItems, totalSize } = storeToRefs(filesStore);
     padding-right: em(12);
     margin-block: em(-12);
     margin-right: em(-12);
-
-    :deep(.simplebar-content-wrapper) {
-      mask-image: linear-gradient(
-        to bottom,
-        transparent,
-        black em(12),
-        black calc(100% - em(12)),
-        transparent
-      );
-    }
-
-    :deep(.simplebar-scrollbar::before) {
-      z-index: 1;
-      background-color: $text-color-primary;
-      opacity: 0.5;
-      transition: all $time-normal $ease;
-    }
-
-    :deep(.simplebar-scrollbar) {
-      &:hover::before {
-        opacity: 0.8;
-      }
-    }
-
-    :deep(.simplebar-track.simplebar-vertical) {
-      width: 6px;
-      background-color: transparent;
-    }
+    overflow-y: auto;
   }
 
   &__content {

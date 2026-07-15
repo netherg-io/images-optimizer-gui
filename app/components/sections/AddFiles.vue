@@ -1,9 +1,11 @@
 <script setup>
+import { storeToRefs } from 'pinia';
 import { useFilesStore } from '@/stores/files';
 import { listen } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 
 const filesStore = useFilesStore();
+const { isScanning, scanCount, scanError } = storeToRefs(filesStore);
 const isDragging = ref(false);
 
 const triggerFileSelect = async () => {
@@ -43,10 +45,10 @@ let unlistenHover = null;
 let unlistenLeave = null;
 
 onMounted(async () => {
-  unlistenDrop = await listen('tauri://drag-drop', (event) => {
+  unlistenDrop = await listen('tauri://drag-drop', async (event) => {
     isDragging.value = false;
     if (event.payload.paths && event.payload.paths.length) {
-      filesStore.addItemsFromPaths(event.payload.paths);
+      await filesStore.addItemsFromPaths(event.payload.paths);
     }
   });
 
@@ -70,13 +72,23 @@ onUnmounted(() => {
 <template>
   <div class="add-files-block">
     <div class="add-files-block__container container">
-      <UiFileInput class="add-files-block__input" :is-active="isDragging" />
+      <UiFileInput
+        class="add-files-block__input"
+        :is-active="isDragging"
+        :is-processing="isScanning"
+        :processed-count="scanCount"
+      />
+
+      <p v-if="scanError" class="add-files-block__error" role="alert">
+        {{ scanError }}
+      </p>
 
       <div class="add-files-block__buttons">
         <UiButton
           class="add-files-block__button"
           :title="$t('sections.add-files.buttons.0')"
           icon="file-add"
+          :disabled="isScanning"
           @click="triggerFileSelect"
         />
 
@@ -84,6 +96,7 @@ onUnmounted(() => {
           class="add-files-block__button"
           :title="$t('sections.add-files.buttons.1')"
           icon="folder-add"
+          :disabled="isScanning"
           @click="triggerFolderSelect"
         />
       </div>
@@ -106,6 +119,10 @@ onUnmounted(() => {
   &__buttons {
     display: flex;
     gap: em(16);
+  }
+
+  &__error {
+    color: $text-color-warn;
   }
 
   &__button {

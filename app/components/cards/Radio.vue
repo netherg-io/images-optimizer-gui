@@ -16,7 +16,13 @@ defineProps({
 </script>
 
 <template>
-  <div class="radio-card" :class="{ ['radio-card--active']: isActive }">
+  <button
+    type="button"
+    class="radio-card"
+    role="radio"
+    :aria-checked="isActive"
+    :class="{ ['radio-card--active']: isActive }"
+  >
     <div class="radio-card__icon-wrapper">
       <div class="radio-card__icon" />
     </div>
@@ -30,7 +36,7 @@ defineProps({
         <p class="s1-r">{{ description }}</p>
       </div>
     </div>
-  </div>
+  </button>
 </template>
 
 <style lang="scss" scoped>

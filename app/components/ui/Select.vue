@@ -55,7 +55,12 @@ const toggleOption = (option) => {
   <div class="ui-select">
     <div v-if="title" class="ui-select__title">{{ title }}</div>
 
-    <div v-if="options?.length" class="ui-select__content">
+    <div
+      v-if="options?.length"
+      class="ui-select__content"
+      role="group"
+      :aria-label="title"
+    >
       <CardSelect
         v-for="(option, index) in options"
         :key="index"

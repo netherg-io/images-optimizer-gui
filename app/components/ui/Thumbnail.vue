@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
-import { openPath } from '@tauri-apps/plugin-opener';
 
 const props = defineProps({
   src: { type: String, required: true },
@@ -40,7 +39,7 @@ watch(
 const openOriginal = async () => {
   if (!props.src) return;
   try {
-    await openPath(props.src);
+    await invoke('open_local_path', { path: props.src });
   } catch (err) {
     console.error('Failed to open image:', err);
   }
@@ -48,7 +47,13 @@ const openOriginal = async () => {
 </script>
 
 <template>
-  <div class="thumb-container" :class="className" @click.stop="openOriginal">
+  <button
+    type="button"
+    class="thumb-container"
+    :class="className"
+    :aria-label="alt || $t('common.open-image')"
+    @click.stop="openOriginal"
+  >
     <ACrossFade>
       <img
         v-if="thumbnailSrc"
@@ -62,9 +67,9 @@ const openOriginal = async () => {
     </ACrossFade>
 
     <div class="thumb-container__overlay">
-      <CIcon name="eye" class="thumb-container__icon" />
+      <CIcon name="eye" class="thumb-container__icon" aria-hidden="true" />
     </div>
-  </div>
+  </button>
 </template>
 
 <style lang="scss" scoped>

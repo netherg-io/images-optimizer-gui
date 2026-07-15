@@ -1,0 +1,70 @@
+name: Unsigned beta release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: yarn
+      - run: rustup toolchain install stable --profile minimal
+      - run: rustup default stable
+      - run: yarn install --frozen-lockfile
+      - name: Verify tag and application versions
+        shell: pwsh
+        run: |
+          $version = node scripts/version.mjs check
+          if ("v$version" -ne "$env:GITHUB_REF_NAME") {
+            throw "Tag $env:GITHUB_REF_NAME does not match v$version"
+          }
+      - run: yarn lint
+      - run: yarn stylelint
+      - run: yarn typecheck
+      - run: yarn test
+      - run: cargo fmt --check --manifest-path src-tauri/Cargo.toml
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+
+  release:
+    needs: validate
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: yarn
+      - run: rustup toolchain install stable --profile minimal
+      - run: rustup default stable
+      - run: yarn install --frozen-lockfile
+      - run: yarn tauri:build
+      - name: Create checksums
+        shell: pwsh
+        run: |
+          $assets = Get-ChildItem src-tauri/target/release/bundle -Recurse -File |
+            Where-Object { $_.Extension -in '.exe', '.msi' }
+          $assets | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash *$($_.Name)"
+          } | Set-Content SHA256SUMS.txt
+      - name: Create draft prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $assets = (Get-ChildItem src-tauri/target/release/bundle -Recurse -File |
+            Where-Object { $_.Extension -in '.exe', '.msi' }).FullName
+          gh release create "$env:GITHUB_REF_NAME" @assets SHA256SUMS.txt `
+            --draft --prerelease --title "$env:GITHUB_REF_NAME unsigned beta" `
+            --notes "Unsigned Windows beta. Verify SHA256SUMS.txt before installation."

@@ -1,4 +1,4 @@
-import { I18N_DEFAULT_LOCALE } from './app/constants/i18n';
+const I18N_DEFAULT_LOCALE = 'en';
 
 function customRule(choice: number, choicesLength: number) {
   if (choice === 0) {

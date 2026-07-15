@@ -3,6 +3,9 @@ import { processPaths } from '@/utils/fileScanner';
 
 export const useFilesStore = defineStore('files', () => {
   const items = ref([]);
+  const scanError = ref('');
+  const isScanning = ref(false);
+  const scanCount = ref(0);
 
   const totalSize = computed(() => {
     return items.value.reduce((acc, item) => acc + item.size, 0);
@@ -33,12 +36,26 @@ export const useFilesStore = defineStore('files', () => {
   });
 
   const addItemsFromPaths = async (paths) => {
-    const newTrees = await processPaths(paths);
-    newTrees.forEach((newRoot) => {
-      if (!items.value.some((i) => i.path === newRoot.path)) {
-        items.value.push(newRoot);
-      }
-    });
+    if (isScanning.value) return;
+    scanError.value = '';
+    scanCount.value = 0;
+    isScanning.value = true;
+    try {
+      const newTrees = await processPaths(
+        paths,
+        (count) => (scanCount.value = count),
+      );
+      newTrees.forEach((newRoot) => {
+        if (!items.value.some((i) => i.path === newRoot.path)) {
+          items.value.push(newRoot);
+        }
+      });
+    } catch (error) {
+      scanError.value =
+        typeof error === 'string' ? error : error?.message || String(error);
+    } finally {
+      isScanning.value = false;
+    }
   };
 
   const recalculateFolder = (folder) => {
@@ -92,6 +109,9 @@ export const useFilesStore = defineStore('files', () => {
 
   return {
     items,
+    scanError,
+    isScanning,
+    scanCount,
     totalSize,
     totalItems,
     fileTasks,
