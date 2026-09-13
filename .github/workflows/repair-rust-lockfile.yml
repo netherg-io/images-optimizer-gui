@@ -1,0 +1,56 @@
+name: One-time Rust lockfile repair
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repair-rust-lockfile-pr-2
+  cancel-in-progress: false
+
+jobs:
+  update-lockfile:
+    if: >-
+      github.event.pull_request.number == 2 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'ci/github-hosted-runners-20260913'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ci/github-hosted-runners-20260913
+      - name: Check the expected lockfile
+        run: |
+          test "$(git hash-object src-tauri/Cargo.lock)" = "5503760768658b84fd9a871240ed748d3c07a722"
+      - name: Install Rust
+        run: rustup toolchain install stable --profile minimal
+      - name: Update only rust_decimal
+        run: cargo +stable update --manifest-path src-tauri/Cargo.toml --package rust_decimal --precise 1.43.0
+      - name: Verify the vulnerable optional dependency is removed
+        run: |
+          python3 - <<'PY'
+          import tomllib
+          from pathlib import Path
+          packages = tomllib.loads(Path('src-tauri/Cargo.lock').read_text())['package']
+          assert any(p['name'] == 'rust_decimal' and p['version'] == '1.43.0' for p in packages)
+          assert not any(p['name'] in ('rkyv', 'rkyv_derive') and p['version'].startswith('0.7.') for p in packages)
+          print('Verified rust_decimal 1.43.0 and removal of rkyv 0.7.')
+          PY
+          cargo +stable tree --manifest-path src-tauri/Cargo.toml --locked --target x86_64-pc-windows-msvc --invert rust_decimal
+          git diff --check
+          git diff --stat
+          git diff -- src-tauri/Cargo.lock
+      - name: Commit the generated lockfile to this PR branch only
+        run: |
+          test "$(git diff --name-only)" = "src-tauri/Cargo.lock"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src-tauri/Cargo.lock
+          git commit -m 'fix(deps): remove vulnerable rkyv 0.7 through rust_decimal 1.43.0'
+          git push origin HEAD:refs/heads/ci/github-hosted-runners-20260913
